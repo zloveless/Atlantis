@@ -1,0 +1,39 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.30723.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atlantis", "Atlantis\Atlantis.csproj", "{3464FCF7-A68E-40CC-A354-32B80E698890}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atlantis.Net", "Atlantis.Net\Atlantis.Net.csproj", "{186F735C-F866-4DE0-8F99-CDE961675397}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atlantis.Net.Irc", "Atlantis.Net.Irc\Atlantis.Net.Irc.csproj", "{07410E3A-D2CF-4A81-BA52-864C8D206664}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{92E16622-1050-47F2-9AC8-F8B3010F8742}"
+	ProjectSection(SolutionItems) = preProject
+		GlobalAssemblyInfo.cs = GlobalAssemblyInfo.cs
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3464FCF7-A68E-40CC-A354-32B80E698890}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3464FCF7-A68E-40CC-A354-32B80E698890}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3464FCF7-A68E-40CC-A354-32B80E698890}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3464FCF7-A68E-40CC-A354-32B80E698890}.Release|Any CPU.Build.0 = Release|Any CPU
+		{186F735C-F866-4DE0-8F99-CDE961675397}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{186F735C-F866-4DE0-8F99-CDE961675397}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{186F735C-F866-4DE0-8F99-CDE961675397}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{186F735C-F866-4DE0-8F99-CDE961675397}.Release|Any CPU.Build.0 = Release|Any CPU
+		{07410E3A-D2CF-4A81-BA52-864C8D206664}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{07410E3A-D2CF-4A81-BA52-864C8D206664}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{07410E3A-D2CF-4A81-BA52-864C8D206664}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{07410E3A-D2CF-4A81-BA52-864C8D206664}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
