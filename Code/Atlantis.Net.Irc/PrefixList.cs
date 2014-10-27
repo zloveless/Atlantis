@@ -12,13 +12,13 @@ namespace Atlantis.Net.Irc
 
 	public class PrefixList
 	{
-		private readonly IrcClient client;
+		private readonly IrcClient_Old clientOld;
 		private readonly char[] prefixes;
 
-		public PrefixList(IrcClient client)
+		public PrefixList(IrcClient_Old clientOld)
 		{
-			this.client = client;
-			prefixes = new char[client.AccessPrefixes.Length];
+			this.clientOld = clientOld;
+			prefixes = new char[clientOld.AccessPrefixes.Length];
 		}
 
 		public char HighestPrefix
@@ -71,8 +71,8 @@ namespace Atlantis.Net.Irc
 			if (a == 0) return 1;
 			if (b == 0) return -1;
 
-			var aIndex = client.AccessPrefixes.IndexOf(a);
-			var bIndex = client.AccessPrefixes.IndexOf(b);
+			var aIndex = clientOld.AccessPrefixes.IndexOf(a);
+			var bIndex = clientOld.AccessPrefixes.IndexOf(b);
 
 			if (aIndex < 0 || bIndex < 0)
 			{

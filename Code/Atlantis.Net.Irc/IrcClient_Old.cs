@@ -1,5 +1,5 @@
 ﻿// -----------------------------------------------------------------------------
-//  <copyright file="IrcClient.cs" company="Zack Loveless">
+//  <copyright file="IrcClient_Old.cs" company="Zack Loveless">
 //      Copyright (c) Zack Loveless.  All rights reserved.
 //  </copyright>
 // -----------------------------------------------------------------------------
@@ -21,7 +21,7 @@ namespace Atlantis.Net.Irc
 	using Collections.Concurrent;
 	using Linq;
 
-	public partial class IrcClient : IDisposable
+	public partial class IrcClient_Old : IDisposable
 	{
 		// ReSharper disable FieldCanBeMadeReadOnly.Local
 		private readonly IQueue<string> messageQueue;
@@ -40,7 +40,7 @@ namespace Atlantis.Net.Irc
 	    private Encoding encoding;
 	    // ReSharper restore FieldCanBeMadeReadOnly.Local
 
-		public IrcClient()
+		public IrcClient_Old()
 		{
 			tokenSource             = new CancellationTokenSource();
 			token                   = tokenSource.Token;
@@ -76,7 +76,7 @@ namespace Atlantis.Net.Irc
 			token.Register(CancellationNoticeHandler);
 		}
 
-	    public IrcClient(IrcConfiguration config) : this()
+	    public IrcClient_Old(IrcConfiguration config) : this()
 	    {
 	        Host     = config.Host;
 	        Port     = config.Port;
@@ -86,7 +86,7 @@ namespace Atlantis.Net.Irc
 	        Password = config.Password;
 	    }
 
-		~IrcClient()
+		~IrcClient_Old()
 		{
 		    RawMessageReceivedEvent = null;
             RfcNumericEvent = null;
@@ -95,7 +95,7 @@ namespace Atlantis.Net.Irc
 		#region Properties
 
 		/// <summary>
-		/// Gets a <see cref="T:System.Boolean" /> value representing whether the <see cref="T:IrcClient" /> has connected to the Host.
+		/// Gets a <see cref="T:System.Boolean" /> value representing whether the <see cref="T:IrcClient_Old" /> has connected to the Host.
 		/// </summary>
 		public bool Connected
 		{
@@ -128,17 +128,17 @@ namespace Atlantis.Net.Irc
 		public double FillListsDelay { get; set; }
 
 		/// <summary>
-		/// Gets or sets a <see cref="T:System.String" /> value representing the name of the Host in which the <see cref="T:IrcClient" /> will be connecting.
+		/// Gets or sets a <see cref="T:System.String" /> value representing the name of the Host in which the <see cref="T:IrcClient_Old" /> will be connecting.
 		/// </summary>
 		public string Host { get; set; }
 
 		/// <summary>
-		/// Gets or sets a <see cref="T:System.String" /> value representing the Ident part for the <see cref="T:IrcClient" />'s user.
+		/// Gets or sets a <see cref="T:System.String" /> value representing the Ident part for the <see cref="T:IrcClient_Old" />'s user.
 		/// </summary>
 		public string Ident { get; set; }
 
 		/// <summary>
-		/// Gets a <see cref="T:System.Boolean" /> value representing whether the <see cref="T:IrcClient" /> has been initialized.
+		/// Gets a <see cref="T:System.Boolean" /> value representing whether the <see cref="T:IrcClient_Old" /> has been initialized.
 		/// </summary>
 		public bool IsInitialized
 		{
@@ -163,7 +163,7 @@ namespace Atlantis.Net.Irc
 	    }
 
 	    /// <summary>
-	    /// Gets or sets a <see cref="T:System.String" /> value representing the nickname for the <see cref="T:IrcClient" /> 
+	    /// Gets or sets a <see cref="T:System.String" /> value representing the nickname for the <see cref="T:IrcClient_Old" /> 
 	    /// </summary>
 	    public string Nick { get; set; }
 
@@ -178,7 +178,7 @@ namespace Atlantis.Net.Irc
 		public string Password { get; set; }
 
 		/// <summary>
-		/// Gets or sets a <see cref="T:System.Int32" /> value representing the port in which the <see cref="T:IrcClient" /> will be connecting.
+		/// Gets or sets a <see cref="T:System.Int32" /> value representing the port in which the <see cref="T:IrcClient_Old" /> will be connecting.
 		/// </summary>
 		public int Port { get; set; }
 
@@ -188,7 +188,7 @@ namespace Atlantis.Net.Irc
 		public int QueueInteval { get; set; }
 
 		/// <summary>
-		/// Gets or sets a <see cref="T:System.String" /> value representing the <see cref="T:IrcClient" />'s real name.
+		/// Gets or sets a <see cref="T:System.String" /> value representing the <see cref="T:IrcClient_Old" />'s real name.
 		/// </summary>
 		public string RealName { get; set; }
 
@@ -224,7 +224,7 @@ namespace Atlantis.Net.Irc
 		#region Events
 
 		/// <summary>
-		/// Raised when the <see cref="T:IrcClient" /> establishes a connection to the server.
+		/// Raised when the <see cref="T:IrcClient_Old" /> establishes a connection to the server.
 		/// It is strongly recommended that you delay any commands processed here if you disable EnableFakeLag.
 		/// </summary>
 		public event EventHandler ConnectionEstablishedEvent;
@@ -305,7 +305,7 @@ namespace Atlantis.Net.Irc
 		}
 
 		/// <summary>
-		/// Starts the <see cref="T:IrcClient" /> process of reading and writing to the Host.
+		/// Starts the <see cref="T:IrcClient_Old" /> process of reading and writing to the Host.
 		/// </summary>
 		public void Start()
 		{

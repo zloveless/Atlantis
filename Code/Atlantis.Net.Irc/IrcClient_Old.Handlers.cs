@@ -15,7 +15,7 @@ namespace Atlantis.Net.Irc
 	using Linq;
 	using Timer = System.Timers.Timer;
 
-	public partial class IrcClient
+	public partial class IrcClient_Old
 	{
 		#region Fields
 

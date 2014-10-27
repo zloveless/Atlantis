@@ -8,7 +8,7 @@ namespace Atlantis.Net.Irc
 {
 	using System;
 
-	public partial class IrcClient
+	public partial class IrcClient_Old
 	{
 		public bool IsHigherOrEqualToPrefix(char prefixA, char prefixB)
 		{

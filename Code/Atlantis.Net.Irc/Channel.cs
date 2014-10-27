@@ -12,7 +12,7 @@ namespace Atlantis.Net.Irc
 
 	public class Channel : IEquatable<String>
 	{
-		private readonly IrcClient client;
+		private readonly IrcClient_Old clientOld;
 
 		private Channel()
 		{
@@ -21,9 +21,9 @@ namespace Atlantis.Net.Irc
 			Users     = new Dictionary<string, PrefixList>();
 		}
 
-		internal Channel(IrcClient client, string channelName) : this()
+		internal Channel(IrcClient_Old clientOld, string channelName) : this()
 		{
-			this.client = client;
+			this.clientOld = clientOld;
 			Name        = channelName;
 		}
 
