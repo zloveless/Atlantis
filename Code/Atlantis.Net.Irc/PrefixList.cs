@@ -12,13 +12,13 @@ namespace Atlantis.Net.Irc
 
 	public class PrefixList
 	{
-		private readonly IrcClient_Old clientOld;
+		private readonly IrcClient clientOld;
 		private readonly char[] prefixes;
 
-		public PrefixList(IrcClient_Old clientOld)
+		public PrefixList(IrcClient clientOld)
 		{
 			this.clientOld = clientOld;
-			prefixes = new char[clientOld.AccessPrefixes.Length];
+			//prefixes = new char[clientOld.AccessPrefixes.Length];
 		}
 
 		public char HighestPrefix
@@ -67,7 +67,7 @@ namespace Atlantis.Net.Irc
 
 		protected int Sort(char a, char b)
 		{
-			if (a == 0 && b == 0) return 0;
+			/*if (a == 0 && b == 0) return 0;
 			if (a == 0) return 1;
 			if (b == 0) return -1;
 
@@ -79,7 +79,8 @@ namespace Atlantis.Net.Irc
 				return 0;
 			}
 
-			return aIndex - bIndex;
+			return aIndex - bIndex;*/
+		    return 0;
 		}
 
 		#region Overrides of Object

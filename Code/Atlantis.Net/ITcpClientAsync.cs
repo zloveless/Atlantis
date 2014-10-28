@@ -6,8 +6,10 @@
 
 namespace Atlantis.Net
 {
-	using System.Threading.Tasks;
+    using System;
+    using System.Threading.Tasks;
 
+    [Obsolete]
 	public interface ITcpClientAsync : ITcpClient
 	{
 		Task ConnectAsync(string host, int port);

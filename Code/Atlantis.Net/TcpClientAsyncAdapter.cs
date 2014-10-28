@@ -13,6 +13,7 @@ namespace Atlantis.Net
 	using System.Text;
 	using System.Threading.Tasks;
 
+    [Obsolete]
 	public class TcpClientAsyncAdapter : ITcpClientAsync
 	{
 		private readonly TcpClient client;

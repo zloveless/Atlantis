@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-//  <copyright file="RfcNumericEventArgs.cs" company="Zack Loveless">
+//  <copyright file="RfcNumericReceivedEventArgs.cs" company="Zack Loveless">
 //      Copyright (c) Zack Loveless.  All rights reserved.
 //  </copyright>
 // -----------------------------------------------------------------------------
@@ -8,9 +8,9 @@ namespace Atlantis.Net.Irc
 {
 	using System;
 
-	public class RfcNumericEventArgs : EventArgs
+	public class RfcNumericReceivedEventArgs : EventArgs
 	{
-		public RfcNumericEventArgs(int numeric, string message)
+		public RfcNumericReceivedEventArgs(int numeric, string message)
 		{
 			Numeric = numeric;
 			Message = message;

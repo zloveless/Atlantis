@@ -6,20 +6,25 @@
 
 namespace Atlantis.Net.Irc
 {
+    using System;
+    using System.Text;
+
     public struct IrcConfiguration
     {
-        public string Host { get; set; }
+        public Encoding Encoding { get; set; }
+
+        public String Host { get; set; }
 
         public int Port { get; set; }
 
         public bool SslEnabled { get; set; }
 
-        public string Nick { get; set; }
-        
-        public string Ident { get; set; }
+        public String Nick { get; set; }
 
-        public string RealName { get; set; }
+        public String Ident { get; set; }
 
-        public string Password { get; set; }
+        public String RealName { get; set; }
+
+        public String Password { get; set; }
     }
 }

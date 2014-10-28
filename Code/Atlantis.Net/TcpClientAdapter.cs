@@ -12,6 +12,7 @@ namespace Atlantis.Net
 	using System.Net.Sockets;
 	using System.Text;
 
+    [Obsolete]
 	public class TcpClientAdapter : ITcpClient
 	{
 		private readonly TcpClient client;

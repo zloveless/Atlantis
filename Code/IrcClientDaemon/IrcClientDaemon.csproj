@@ -4,27 +4,30 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{07410E3A-D2CF-4A81-BA52-864C8D206664}</ProjectGuid>
-    <OutputType>Library</OutputType>
+    <ProjectGuid>{2A99FC4D-CD01-4DEE-8613-170FA5389A14}</ProjectGuid>
+    <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Atlantis.Net.Irc</RootNamespace>
-    <AssemblyName>Atlantis.Net.Irc</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <RootNamespace>IrcClientDaemon</RootNamespace>
+    <AssemblyName>IrcClientDaemon</AssemblyName>
+    <TargetFrameworkVersion>v4.5.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>..\..\Build\Debug\</OutputPath>
+    <OutputPath>bin\Debug\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>..\..\Build\Release\</OutputPath>
+    <OutputPath>bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -32,39 +35,22 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\GlobalAssemblyInfo.cs">
-      <Link>GlobalAssemblyInfo.cs</Link>
-    </Compile>
-    <Compile Include="Channel.cs" />
-    <Compile Include="Properties\ReSharper.Annotations.cs" />
-    <Compile Include="ConnectOptions.cs" />
-    <Compile Include="IrcClient.cs" />
-    <Compile Include="IrcClient_Handlers.cs" />
-    <Compile Include="IrcConfiguration.cs" />
-    <Compile Include="IrcEncoding.cs" />
-    <Compile Include="IrcHeaders.cs" />
-    <Compile Include="JoinPartEventArgs.cs" />
-    <Compile Include="ListMode.cs" />
-    <Compile Include="MessageReceivedEventArgs.cs" />
-    <Compile Include="NickChangeEventArgs.cs" />
-    <Compile Include="PrefixList.cs" />
+    <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ProtocolMessageEventArgs.cs" />
-    <Compile Include="QuitEventArgs.cs" />
-    <Compile Include="RawMessageEventArgs.cs" />
-    <Compile Include="RfcNumericReceivedEventArgs.cs" />
-    <Compile Include="TimeoutEventArgs.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Atlantis.Net\Atlantis.Net.csproj">
-      <Project>{186F735C-F866-4DE0-8F99-CDE961675397}</Project>
-      <Name>Atlantis.Net</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Atlantis\Atlantis.csproj">
-      <Project>{3464FCF7-A68E-40CC-A354-32B80E698890}</Project>
-      <Name>Atlantis</Name>
+    <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Atlantis.Net.Irc\Atlantis.Net.Irc.csproj">
+      <Project>{07410E3A-D2CF-4A81-BA52-864C8D206664}</Project>
+      <Name>Atlantis.Net.Irc</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

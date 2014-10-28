@@ -6,8 +6,10 @@
 
 namespace Atlantis.Net
 {
+    using System;
     using System.IO;
 
+    [Obsolete]
     public interface ITcpClient
 	{
 		bool Connected { get; }
