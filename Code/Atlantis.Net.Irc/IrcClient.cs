@@ -16,6 +16,8 @@ namespace Atlantis.Net.Irc
     using System.Threading;
     using System.Threading.Tasks;
 
+    // RFC 1459: https://tools.ietf.org/html/rfc1459
+
     public partial class IrcClient
     {
         private readonly Queue<String> messageQueue = new Queue<String>();
@@ -40,6 +42,8 @@ namespace Atlantis.Net.Irc
             Encoding = Encoding.UTF8;
 
             //ConnectionTimeOutEvent += OnTimeout;
+
+            QueueInterval = 1000;
         }
 
         public IrcClient(IrcConfiguration config) : this()
@@ -80,6 +84,12 @@ namespace Atlantis.Net.Irc
         {
             get { return client != null && client.Connected; }
         }
+
+		/// <summary>
+		///		<para>Gets or sets a value indicating whether to enable ircv3 features with the IrcClient.</para>
+		///		<para>Defaults to false.</para>
+		/// </summary>
+		public bool EnableV3 { get; set; }
 
         public Encoding Encoding { get; set; }
 
@@ -130,9 +140,9 @@ namespace Atlantis.Net.Irc
         public int Port { get; set; }
 
         /// <summary>
-        /// Gets or sets a value indicating the interval, in milliseconds, the queue worker processed enqueued messages.
+        /// Gets or sets a value indicating the interval, in milliseconds, the queue worker processes enqueued messages.
         /// </summary>
-        public int QueueDelay { get; set; }
+        public int QueueInterval { get; set; }
 
         /// <summary>
         /// Gets or sets the realname of ourself on the IRC server.
@@ -143,12 +153,23 @@ namespace Atlantis.Net.Irc
 
         #region Methods
 
+        /// <summary>
+        /// Returns a channel from the internal collection of the IrcClient.
+        /// </summary>
+        /// <param name="channelName"></param>
+        /// <returns></returns>
+        /// <exception cref="T:Atlantis.Net.Irc.RfcException" />
         public Channel GetChannel(String channelName)
         {
             Channel c;
             if (channels.TryGetValue(channelName, out c))
             {
                 return c;
+            }
+
+            if (info.ChannelLength > 0 && channelName.Length > info.ChannelLength)
+            { // Check if the channel length is greater than zero (whether we have it set) and whether the channel name specified conforms to that length.
+                throw new RfcException(String.Format("The length of the channel {0} cannot exceed a length of {1} as provided by the IRC server.", channelName, info.ChannelLength));
             }
 
             c = new Channel(this, channelName);
@@ -256,11 +277,19 @@ namespace Atlantis.Net.Irc
             return true;
         }
 
-        public void Stop()
+        public async void Stop(String reason = null)
         {
             if (Connected)
             {
                 requestShutdown = true;
+	            if (String.IsNullOrEmpty(reason))
+	            {
+		            await SendNow("QUIT");
+	            }
+	            else
+	            {
+		            await SendNow("QUIT :{0}", reason);
+	            }
             }
         }
 

@@ -17,30 +17,29 @@ namespace IrcClientDaemon
         {
             IrcClient client = new IrcClient
                                {
-                                   HostName = "irc.cncfps.com",
-                                   Port = 6667,
-                                   Nick = "AtlantisTest",
-                                   Encoding = Encoding.UTF8,
+	                               HostName = "irc.cncfps.com",
+	                               Port = 6667,
+	                               Nick = "AtlantisTest",
+	                               Encoding = Encoding.UTF8,
+	                               //EnableV3 = true,
                                };
 
-            client.ConnectionEstablishedEvent += (s, e) =>
-                                                 {
-                                                     Console.WriteLine("Connected!");
-                                                     return;
-                                                 };
+	        client.ConnectionEstablishedEvent += (s, e) =>
+	                                             {
+		                                             Console.WriteLine("Connected!");
+
+		                                             ((IrcClient)s).Send("JOIN #UnifiedTech");
+		                                             ((IrcClient)s).Send("PRIVMSG #UnifiedTech :Hello World!");
+	                                             };
 
             // ReSharper disable once CSharpWarnings::CS4014
             client.Start();
 
-            /*Console.CancelKeyPress += (s, e) => client.Stop();
+            Console.CancelKeyPress += (s, e) => client.Stop("Goodbye!");
             while (true)
             {
                 new EventWaitHandle(false, EventResetMode.ManualReset).WaitOne(1000);
-            }*/
-
-            Console.ReadLine();
-
-            client.Stop();
+            }
         }
     }
 }
