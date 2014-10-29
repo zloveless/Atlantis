@@ -8,17 +8,19 @@ namespace Atlantis.Net.Irc
 {
 	using System;
 	using System.Collections.Generic;
-	using Linq;
+	using System.Collections.ObjectModel;
+	using System.Linq;
+	using Atlantis.Linq;
 
 	public class Channel : IEquatable<String>
 	{
 		private readonly IrcClient client;
+		private readonly Dictionary<String, PrefixList> users = new Dictionary<String, PrefixList>(StringComparer.OrdinalIgnoreCase);
+		private readonly Dictionary<char, String> modes = new Dictionary<char, String>();
+		private readonly List<ListMode> listModes = new List<ListMode>(); 
 
 		private Channel()
 		{
-			ListModes = new List<ListMode>();
-			Modes     = new Dictionary<char, string>();
-			Users     = new Dictionary<string, PrefixList>();
 		}
 
 		internal Channel(IrcClient client, string channelName) : this()
@@ -31,11 +33,70 @@ namespace Atlantis.Net.Irc
 
 		public string Name { get; private set; }
 
-		public List<ListMode> ListModes { get; private set; }
+		public IEnumerable<ListMode> ListModes
+		{
+			get { return listModes; }
+		}
+		
+		public ReadOnlyDictionary<char, String> Modes
+		{
+			get { return new ReadOnlyDictionary<char, string>(modes); }
+		}
 
-		public Dictionary<char, string> Modes { get; private set; }
+		public ReadOnlyDictionary<String, PrefixList> Users
+		{
+			get { return new ReadOnlyDictionary<string, PrefixList>(users); }
+		}
 
-		public Dictionary<string, PrefixList> Users { get; private set; }
+		#endregion
+
+		#region Methods
+
+		public void AddUser(String user, char[] prefixes = null)
+		{
+			lock (users)
+			{
+				if (!users.ContainsKey(user))
+				{
+					users.Add(user, prefixes == null ? new PrefixList(client) : new PrefixList(client, prefixes));
+				}
+			}
+		}
+
+		public void AddOrUpdateUser(String user, params char[] prefixes)
+		{
+			lock (users)
+			{
+				if (!users.ContainsKey(user))
+				{
+					users.Add(user, prefixes == null ? new PrefixList(client) : new PrefixList(client, prefixes));
+				}
+				else if (users.ContainsKey(user) && prefixes.Length > 0)
+				{
+					foreach (char p in prefixes.Where(p => !users[user].HasPrefix(p)))
+					{
+						users[user].AddPrefix(p);
+					}
+				}
+			}
+		}
+
+		public PrefixList GetUserPrefixes(String user)
+		{
+			PrefixList list;
+			return users.TryGetValue(user, out list) ? list : null;
+		}
+
+		public void RemoveUser(String user)
+		{
+			lock (users)
+			{
+				if (users.ContainsKey(user))
+				{
+					users.Remove(user);
+				}
+			}
+		}
 
 		#endregion
 

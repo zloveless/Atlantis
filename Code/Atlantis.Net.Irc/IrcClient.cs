@@ -20,48 +20,56 @@ namespace Atlantis.Net.Irc
 
     public partial class IrcClient
     {
-        private readonly Queue<String> messageQueue = new Queue<String>();
-        private readonly IDictionary<String, Channel> channels = new ConcurrentDictionary<String, Channel>();
+	    #region Fields
 
-        private readonly SemaphoreSlim connectingLock = new SemaphoreSlim(0, 1);
-        private readonly SemaphoreSlim writingLock = new SemaphoreSlim(1, 1);
+	    private readonly Queue<String> messageQueue = new Queue<String>();
+	    private readonly IDictionary<String, Channel> channels = new ConcurrentDictionary<String, Channel>();
 
-        private readonly TcpClient client;
-        private readonly Thread worker;
-        private readonly Thread qWorker;
-        
-        private NetworkStream stream;
-        private StreamReader reader;
-        private bool requestShutdown;
+	    private readonly SemaphoreSlim connectingLock = new SemaphoreSlim(0, 1);
+	    private readonly SemaphoreSlim writingLock = new SemaphoreSlim(1, 1);
 
-        public IrcClient()
-        {
-            client = new TcpClient();
-            worker = new Thread(WorkerCallback);
-            qWorker = new Thread(QueueWorkerCallback);
-            Encoding = Encoding.UTF8;
+	    private readonly TcpClient client;
+	    private readonly Thread worker;
+	    private readonly Thread qWorker;
 
-            //ConnectionTimeOutEvent += OnTimeout;
+	    private NetworkStream stream;
+	    private StreamReader reader;
+	    private bool requestShutdown;
 
-            QueueInterval = 1000;
-        }
+	    #endregion
 
-        public IrcClient(IrcConfiguration config) : this()
-        {
-            Encoding = config.Encoding;
-            HostName = config.Host;
-            Ident = config.Ident;
-            Nick = config.Nick;
-            Password = config.Password;
-            Port = config.Port;
-            RealName = config.RealName;
+	    #region Constructors
 
-            if (config.SslEnabled)
-            {
-                Options |= ConnectOptions.Secure;
-            }
-        }
+	    public IrcClient()
+	    {
+		    client = new TcpClient();
+		    worker = new Thread(WorkerCallback);
+		    qWorker = new Thread(QueueWorkerCallback);
+		    Encoding = Encoding.UTF8;
 
+		    //ConnectionTimeOutEvent += OnTimeout;
+
+		    QueueInterval = 2500;
+	    }
+
+	    public IrcClient(IrcConfiguration config) : this()
+	    {
+		    Encoding = config.Encoding;
+		    HostName = config.Host;
+		    Ident = config.Ident;
+		    Nick = config.Nick;
+		    Password = config.Password;
+		    Port = config.Port;
+		    RealName = config.RealName;
+
+		    if (config.SslEnabled)
+		    {
+			    Options |= ConnectOptions.Secure;
+		    }
+	    }
+
+	    #endregion
+		
         #region Events
 
         public event EventHandler ConnectionEstablishedEvent;
@@ -69,7 +77,12 @@ namespace Atlantis.Net.Irc
 
         #region RFC Events
 
-        public event EventHandler<RfcNumericReceivedEventArgs> RfcNumericReceivedEvent;
+		public event EventHandler<MessageReceivedEventArgs> NoticeReceivedEvent;
+		public event EventHandler<MessageReceivedEventArgs> PrivmsgReceivedEvent;
+		public event EventHandler<RfcNumericReceivedEventArgs> RfcNumericReceivedEvent;
+
+	    public event EventHandler<JoinPartEventArgs> JoinEvent;
+	    public event EventHandler<JoinPartEventArgs> PartEvent;
 
         #endregion
 
@@ -298,6 +311,9 @@ namespace Atlantis.Net.Irc
 
     #region External type: RfcException
 
+	/// <summary>
+	/// 
+	/// </summary>
     public class RfcException : Exception
     {
         public RfcException(String message) : base(message)

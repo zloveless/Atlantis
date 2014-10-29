@@ -8,20 +8,28 @@ namespace Atlantis.Net.Irc
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.IO;
     using System.Linq;
     using System.Text;
     using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Tasks;
+    using Atlantis.Linq;
     using Linq;
 
     public partial class IrcClient
     {
-        internal ServerInfo info = new ServerInfo();
-        internal bool useExtendedNames;
-        internal bool useUserhostNames;
-		private DateTime lastMessage;
+	    #region Fields
+
+	    internal ServerInfo info = new ServerInfo();
+	    private bool useExtendedNames;
+	    private bool useUserhostNames;
+	    private DateTime lastMessage;
+
+	    private String accessRegex;
+
+	    #endregion
 
         #region Properties
 
@@ -32,7 +40,7 @@ namespace Atlantis.Net.Irc
 		    get { return info.PrefixModes; }
 	    }
 
-	    public String PrefixList
+	    public String Prefixes
 	    {
 		    get { return info.Prefixes; }
 	    }
@@ -92,7 +100,76 @@ namespace Atlantis.Net.Irc
 	    }
 
 	    #endregion
-		
+
+	    protected virtual void OnJoin(String source, String target)
+	    {
+			String nick = source.GetNickFromSource();
+			bool me = Nick.EqualsIgnoreCase(nick);
+
+			JoinEvent.Raise(this, new JoinPartEventArgs(nick, target, me: me));
+
+			if (StrictNames || me)
+			{
+				Send("NAMES {0}", target);
+			}
+	    }
+
+	    protected virtual void OnNotice(String source, String target, String message)
+	    {
+		    NoticeReceivedEvent.Raise(this, new MessageReceivedEventArgs(source, target, message));
+	    }
+
+	    protected virtual void OnPart(String source, String target, String message)
+	    {
+			String nick = source.GetNickFromSource();
+			bool me = Nick.EqualsIgnoreCase(nick);
+
+		    PartEvent.Raise(this, new JoinPartEventArgs(nick, target, message, me));
+
+			if (StrictNames && !me)
+			{
+				Send("NAMES {0}", target);
+			}
+
+			if (me)
+			{
+				lock (channels)
+				{
+					if (channels.ContainsKey(target))
+					{ // Remove the channel since we're parting it.
+						channels.Remove(target);
+					}
+				}
+			}
+	    }
+
+	    protected virtual async void OnPreRegister()
+		{
+			if (!Connected)
+			{
+				return;
+			}
+
+			if (!String.IsNullOrEmpty(Password))
+			{
+				await SendNow("PASS {0}", Password);
+			}
+
+			await SendNow("NICK {0}", Nick);
+			await SendNow("USER {0} 0 * {1}", Ident, RealName.Contains(" ") ? String.Concat(":", RealName) : RealName);
+
+			if (EnableV3)
+			{
+				await Task.Delay(500);
+				await SendNow("CAP LS"); // Request capabilities from the IRC server.
+			}
+		}
+
+	    protected virtual void OnPrivmsg(String source, String target, String message)
+	    {
+		    PrivmsgReceivedEvent.Raise(this, new MessageReceivedEventArgs(source, target, message));
+	    }
+
 	    protected virtual async void OnRfcEvent(String command, String source, String[] parameters)
 	    {
 		    if (command.EqualsIgnoreCase("PING"))
@@ -107,25 +184,81 @@ namespace Atlantis.Net.Irc
 				if (parameters.Any(x => x.EqualsIgnoreCase("multi-prefix")))
 				{
 					caps.Append("multi-prefix ");
+					useExtendedNames = true;
 				}
 				else if (parameters.Any(x => x.EqualsIgnoreCase("userhost-in-names")))
 				{
 					caps.Append("userhost-in-names ");
+					useUserhostNames = true;
 				}
 
 				if (caps.Length > 0)
 				{
-					//await SendNow("CAP REQ :{0}", caps.ToString().Trim(' '));
+					await SendNow("CAP REQ :{0}", caps.ToString().Trim(' '));
 				}
 			}
-			else
+			else if (command.EqualsIgnoreCase("PRIVMSG"))
+			{
+				if (parameters.Length < 2)
+				{
+					Console.WriteLine("Privmsg received with less than 2 parameters.");
+				}
+				else
+				{
+					if (source.IsServerSource())
+					{
+						OnPrivmsg(source, null, String.Join(" ", parameters));
+					}
+					else
+					{
+						OnPrivmsg(source, parameters[0], String.Join(" ", parameters.Skip(1)));
+					}
+				}
+			}
+			else if (command.EqualsIgnoreCase("NOTICE"))
+			{
+				if (parameters.Length < 2)
+				{
+					Console.WriteLine("Notice received with less than 2 parameters.");
+				}
+				else
+				{
+					if (source.IsServerSource())
+					{
+						OnNotice(source, null, String.Join(" ", parameters));
+					}
+					else
+					{
+						OnNotice(source, parameters[0], String.Join(" ", parameters.Skip(1)));
+					}
+				}
+			}
+			else if (command.EqualsIgnoreCase("JOIN"))
+			{
+				Debug.Assert(source != null, "Source is null on join.");
+
+				OnJoin(source, parameters[0]);
+			}
+			else if (command.EqualsIgnoreCase("PART"))
+			{
+				Debug.Assert(source != null, "Source is null on part.");
+
+				String message = null;
+				if (parameters.Length > 1)
+				{
+					message = String.Join(" ", parameters.Skip(1));
+				}
+
+				OnPart(source, parameters[0], message);
+			}
+		    /*else
 			{
 				Console.WriteLine("[{0}] Received command from {1} with {2} parameters: {{{3}}}",
 					command,
 					source,
 					parameters.Length,
 					String.Join(",", parameters));
-			}
+			}*/
 	    }
 
 	    protected virtual async void OnRfcNumeric(Int32 numeric, String source, String[] parameters)
@@ -140,7 +273,7 @@ namespace Atlantis.Net.Irc
 		    else if (numeric == 5)
 		    { // Contribution for handy parsing of 005 courtesy of @aca20031
 			    Dictionary<String, String> args = new Dictionary<String, String>(StringComparer.OrdinalIgnoreCase);
-			    String[] tokens = parameters;
+			    String[] tokens = parameters.Skip(1).ToArray();
 			    foreach (String token in tokens)
 			    {
 				    int equalIndex = token.IndexOf('=');
@@ -164,7 +297,8 @@ namespace Atlantis.Net.Irc
 					    info.Prefixes = m.Groups[2].Value;
 				    }
 			    }
-			    else if (args.ContainsKey("CHANMODES"))
+			    
+				if (args.ContainsKey("CHANMODES"))
 			    {
 				    String[] chanmodes = args["CHANMODES"].Split(',');
 
@@ -173,7 +307,8 @@ namespace Atlantis.Net.Irc
 				    info.ModesWithParameterWhenSet = chanmodes[2];
 				    info.ModesWithNoParameter = chanmodes[3];
 			    }
-			    else if (args.ContainsKey("MODES"))
+			    
+				if (args.ContainsKey("MODES"))
 			    {
 				    int modeslen;
 				    if (Int32.TryParse(args["MODES"], out modeslen))
@@ -181,61 +316,68 @@ namespace Atlantis.Net.Irc
 					    info.MaxModes = modeslen;
 				    }
 			    }
-				else if (!EnableV3)
+
+				if (!EnableV3)
 				{
 					if (args.ContainsKey("NAMESX"))
-					{
-						// Request the server send us extended NAMES (353)
+					{	// Request the server send us extended NAMES (353)
 						// This will format a RPL_NAMES using every single prefix the user has on a channel.
 
 						useExtendedNames = true;
 						await SendNow("PROTOCTL NAMESX");
 					}
-					else if (args.ContainsKey("UHNAMES"))
+
+					if (args.ContainsKey("UHNAMES"))
 					{
-						// for now, I don't want to deal with uhnames.
-						/*useUserhostNames = true;
-						await SendNow("PROTOCTL UHNAMES");*/
+						useUserhostNames = true;
+						await SendNow("PROTOCTL UHNAMES");
 					}
 				}
 		    }
 			else if (numeric == 353)
-			{
-				// note: NAMESX and UHNAMES are not mutually exclusive.
+			{	// note: NAMESX and UHNAMES are not mutually exclusive.
 				// NAMESX: (?<prefix>[!~&@%+]*)(?<nick>[^ ]+)
 				// UHNAMES: (?<prefix>[!~&@%+]*)(?<nick>[^!]+)!(?<ident>[^@]+)@(?<host>[^ ]+)
+				// (?<prefix>[!~&@%+]*)(?<nick>[^!]+)(?:!(?<ident>[^@]+)@(?<host>[^ ]+))?
+
+				if (String.IsNullOrEmpty(accessRegex))
+				{
+					accessRegex = String.Format(@"(?<prefix>[{0}]*)(?<nick>[^! ]+)(?:!(?<ident>[^@]+)@(?<host>[^ ]+))?", Prefixes);
+				}
+
+				var c = GetChannel(parameters[2]); // never null.
+				var names = String.Join(" ", parameters.Skip(3));
+				
+				MatchCollection matches;
+				if (names.TryMatches(accessRegex, out matches))
+				{
+					foreach (Match item in matches)
+					{ // for now, we only care for the nick and the prefix(es).
+						String nick = item.Groups["nick"].Value;
+
+						if (useExtendedNames)
+						{
+							c.AddOrUpdateUser(nick, item.Groups["prefix"].Value.ToCharArray());
+						}
+						else
+						{
+							char prefix = item.Groups["prefix"].Value.Length > 0 ? item.Groups["prefix"].Value[0] : (char)0;
+							c.AddOrUpdateUser(nick, new[] {prefix});
+						}
+
+						//Console.WriteLine("Found \"{0}\" on channel {1}: {2}", nick, c, item.Groups["prefix"].Value);
+					}
+				}
 			}
-			else
+			/*else
 			{
 				Console.WriteLine("[{0:000}] Numeric received with {1} parameters: {{{2}}}",
 					numeric,
 					parameters.Length,
 					String.Join(",", parameters));
-			}
+			}*/
 	    }
 		
-        protected virtual async void OnPreRegister()
-        {
-            if (!Connected)
-            {
-                return;
-            }
-
-			if (!String.IsNullOrEmpty(Password))
-            {
-                await SendNow("PASS {0}", Password);
-            }
-
-            await SendNow("NICK {0}", Nick);
-            await SendNow("USER {0} 0 * {1}", Ident, RealName.Contains(" ") ? String.Concat(":", RealName) : RealName);
-
-	        if (EnableV3)
-	        {
-		        await Task.Delay(500);
-		        await SendNow("CAP LS"); // Request capabilities from the IRC server.
-	        }
-        }
-
         #endregion
 
         #region Callbacks

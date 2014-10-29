@@ -1,5 +1,5 @@
 ﻿// -----------------------------------------------------------------------------
-//  <copyright file="PrefixList.cs" company="Zack Loveless">
+//  <copyright file="Prefixes.cs" company="Zack Loveless">
 //      Copyright (c) Zack Loveless.  All rights reserved.
 //      
 //      LICENSE TBA
@@ -9,16 +9,22 @@
 namespace Atlantis.Net.Irc
 {
 	using System;
+	using System.Linq;
 
 	public class PrefixList
 	{
-		private readonly IrcClient clientOld;
+		private readonly IrcClient client;
 		private readonly char[] prefixes;
 
-		public PrefixList(IrcClient clientOld)
+		public PrefixList(IrcClient client)
 		{
-			this.clientOld = clientOld;
-			//prefixes = new char[clientOld.AccessPrefixes.Length];
+			this.client = client;
+			prefixes = new char[client.Prefixes.Length];
+		}
+
+		public PrefixList(IrcClient client, char[] prefixList) : this(client)
+		{
+			prefixes = prefixList;
 		}
 
 		public char HighestPrefix
@@ -35,13 +41,21 @@ namespace Atlantis.Net.Irc
 					var success = prefixes[i] == 0;
 					prefixes[i] = prefix;
 
-					if (success) Resort();
+					if (success)
+					{
+						Resort();
+					}
 
 					return success;
 				}
 			}
 
 			return false;
+		}
+
+		public bool HasPrefix(char prefix)
+		{
+			return prefixes.Any(t => t == prefix);
 		}
 
 		public bool RemovePrefix(char prefix)
@@ -67,20 +81,19 @@ namespace Atlantis.Net.Irc
 
 		protected int Sort(char a, char b)
 		{
-			/*if (a == 0 && b == 0) return 0;
+			if (a == 0 && b == 0) return 0;
 			if (a == 0) return 1;
 			if (b == 0) return -1;
 
-			var aIndex = clientOld.AccessPrefixes.IndexOf(a);
-			var bIndex = clientOld.AccessPrefixes.IndexOf(b);
+			var aIndex = client.Prefixes.IndexOf(a);
+			var bIndex = client.Prefixes.IndexOf(b);
 
 			if (aIndex < 0 || bIndex < 0)
 			{
 				return 0;
 			}
 
-			return aIndex - bIndex;*/
-		    return 0;
+			return aIndex - bIndex;
 		}
 
 		#region Overrides of Object
