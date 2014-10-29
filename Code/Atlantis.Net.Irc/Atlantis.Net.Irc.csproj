@@ -38,6 +38,7 @@
       <Link>GlobalAssemblyInfo.cs</Link>
     </Compile>
     <Compile Include="Channel.cs" />
+    <Compile Include="IRfcCommand.cs" />
     <Compile Include="Properties\ReSharper.Annotations.cs" />
     <Compile Include="ConnectOptions.cs" />
     <Compile Include="IrcClient.cs" />
