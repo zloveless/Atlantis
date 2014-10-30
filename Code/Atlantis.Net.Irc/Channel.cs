@@ -52,17 +52,6 @@ namespace Atlantis.Net.Irc
 
 		#region Methods
 
-		public void AddUser(String user, char[] prefixes = null)
-		{
-			lock (users)
-			{
-				if (!users.ContainsKey(user))
-				{
-					users.Add(user, prefixes == null ? new PrefixList(client) : new PrefixList(client, prefixes));
-				}
-			}
-		}
-
 		public void AddOrUpdateUser(String user, params char[] prefixes)
 		{
 			lock (users)
@@ -79,6 +68,17 @@ namespace Atlantis.Net.Irc
 					}
 				}
 			}
+		}
+
+		public bool IsUserInChannel(String user)
+		{
+			bool ret;
+			lock (users)
+			{
+				ret = users.ContainsKey(user);
+			}
+
+			return ret;
 		}
 
 		public PrefixList GetUserPrefixes(String user)

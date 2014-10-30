@@ -35,6 +35,7 @@ namespace Atlantis.Net.Irc
 	    private NetworkStream stream;
 	    private StreamReader reader;
 	    private bool requestShutdown;
+	    private string currentNick;
 
 	    #endregion
 
@@ -175,22 +176,38 @@ namespace Atlantis.Net.Irc
         public Channel GetChannel(String channelName)
         {
             Channel c;
-            if (channels.TryGetValue(channelName, out c))
-            {
-                return c;
-            }
 
-            if (info.ChannelLength > 0 && channelName.Length > info.ChannelLength)
-            { // Check if the channel length is greater than zero (whether we have it set) and whether the channel name specified conforms to that length.
-                throw new RfcException(String.Format("The length of the channel {0} cannot exceed a length of {1} as provided by the IRC server.", channelName, info.ChannelLength));
-            }
+	        lock (channels)
+	        {
+		        if (channels.TryGetValue(channelName, out c))
+		        {
+			        return c;
+		        }
 
-            c = new Channel(this, channelName);
-            channels.Add(c.Name, c);
+		        if (info.ChannelLength > 0 && channelName.Length > info.ChannelLength)
+		        { // Check if the channel length is greater than zero (whether we have it set) and whether the channel name specified conforms to that length.
+			        throw new RfcException(String.Format("The length of the channel {0} cannot exceed a length of {1} as provided by the IRC server.", channelName, info.ChannelLength));
+		        }
+
+		        c = new Channel(this, channelName);
+		        channels.Add(c.Name, c);
+	        }
+
             return c;
         }
 
-        protected virtual void SetDefaultValues()
+	    public void RemoveChannel(String channelName)
+	    {
+		    lock (channels)
+		    {
+			    if (channels.ContainsKey(channelName))
+			    {
+				    channels.Remove(channelName);
+			    }
+		    }
+	    }
+
+	    protected virtual void SetDefaultValues()
         {
             if (String.IsNullOrEmpty(Ident))
             {
@@ -208,7 +225,13 @@ namespace Atlantis.Net.Irc
             }
         }
 
-        private async void Send(String message)
+	    public async void SetNick(String newNick)
+	    {
+		    await SendNow("NICK {0}", newNick);
+		    currentNick = newNick;
+	    }
+
+	    private async void Send(String message)
         {
             if (!Connected) return;
             
