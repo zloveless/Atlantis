@@ -8,6 +8,6 @@
     <owners>$author$</owners>
     <projectUrl>https://github.com/Genesis2001/Atlantis/</projectUrl>
     <description>$description$</description>
-    <copyright>Copyright ©2014 Zack Loveless. All rights reserved.</copyright>
+    <copyright>Copyright 2014 Zack Loveless. All rights reserved.</copyright>
   </metadata>
 </package>
