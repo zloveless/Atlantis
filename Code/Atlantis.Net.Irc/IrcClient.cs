@@ -52,7 +52,7 @@ namespace Atlantis.Net.Irc
 
 		    //ConnectionTimeOutEvent += OnTimeout;
 
-		    QueueInterval = 2500;
+		    QueueInterval = 1000;
 	    }
 
 	    public IrcClient(IrcConfiguration config) : this()
@@ -77,9 +77,6 @@ namespace Atlantis.Net.Irc
 
         public event EventHandler ConnectionEstablishedEvent;
         public event EventHandler<TimeoutEventArgs> ConnectionTimeOutEvent;
-
-        #region RFC Events
-
 		public event EventHandler<MessageReceivedEventArgs> NoticeReceivedEvent;
 		public event EventHandler<MessageReceivedEventArgs> PrivmsgReceivedEvent;
 		public event EventHandler<RfcNumericReceivedEventArgs> RfcNumericReceivedEvent;
@@ -88,9 +85,7 @@ namespace Atlantis.Net.Irc
 	    public event EventHandler<ModeChangedEventArgs> ModeChangedEvent;
 	    public event EventHandler<JoinPartEventArgs> PartEvent;
 
-        #endregion
-
-        #endregion
+		#endregion
 
         #region Properties
 
@@ -109,6 +104,8 @@ namespace Atlantis.Net.Irc
 		public bool EnableV3 { get; set; }
 
         public Encoding Encoding { get; set; }
+		
+		public bool FillListsOnJoin { get; set; }
 
         /// <summary>
         /// Gets or sets the host indicating the location of the IRC server.

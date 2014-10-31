@@ -107,9 +107,15 @@ namespace Atlantis.Net.Irc
 			}
 		}
 
-		#region Events Handlers
+		private void FillChannelLists(String target)
+		{
+			foreach (char c in info.ListModes)
+			{
+				Send("MODE {0} +{1}", target, c);
+			}
+		}
 
-		#region Parser
+		#region Events Handlers
 
 		protected virtual void OnDataRecv(string line)
 		{
@@ -159,14 +165,15 @@ namespace Atlantis.Net.Irc
 			}
 		}
 
-		#endregion
-
 		protected virtual void OnJoin(String source, String target)
 		{
 			String nick = source.GetNickFromSource();
 			bool me = currentNick.EqualsIgnoreCase(nick);
 
-			JoinEvent.Raise(this, new JoinPartEventArgs(nick, target, me: me));
+			if (me && FillListsOnJoin)
+			{
+				FillChannelLists(target);
+			}
 
 			if (StrictNames || me)
 			{
@@ -178,6 +185,8 @@ namespace Atlantis.Net.Irc
 			{
 				c.AddOrUpdateUser(nick);
 			}
+
+			JoinEvent.Raise(this, new JoinPartEventArgs(nick, target, me: me));
 		}
 
 		protected virtual void OnModeChanged(char mode, String parameter, String setter, String target, ModeType type)
@@ -251,7 +260,14 @@ namespace Atlantis.Net.Irc
 						int prefixIndex = info.PrefixModes.IndexOf(item.Mode);
 						char prefix = info.Prefixes[prefixIndex];
 
-						c.AddOrUpdateUser(sourceNick, new[] {prefix});
+						if (item.IsSet)
+						{
+							c.AddPrefix(item.Parameter, prefix);
+						}
+						else
+						{
+							c.RemovePrefix(item.Parameter, prefix);
+						}
 					}
 
 					OnModeChanged(item.Mode, item.Parameter, source, target, item.Type);

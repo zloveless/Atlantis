@@ -25,6 +25,12 @@ namespace Atlantis.Net.Irc
 		public PrefixList(IrcClient client, char[] prefixList) : this(client)
 		{
 			prefixes = prefixList;
+
+			if (prefixes.Length != client.Prefixes.Length)
+			{
+				Array.Resize(ref prefixes, client.Prefixes.Length);
+				Resort();
+			}
 		}
 
 		public char HighestPrefix

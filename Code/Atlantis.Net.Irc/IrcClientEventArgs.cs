@@ -55,7 +55,11 @@ namespace Atlantis.Net.Irc
 			Source = source;
 			Message = message;
 			Target = target;
+
+			IsChannel = target.StartsWith("#");
 		}
+
+		public bool IsChannel { get; private set; }
 
 		/// <summary>
 		/// 

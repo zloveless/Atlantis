@@ -54,20 +54,38 @@ namespace Atlantis.Net.Irc
 				{
 					users.Add(user, prefixes.Length == 0 ? new PrefixList(client) : new PrefixList(client, prefixes));
 				}
-				else if (users.ContainsKey(user) && prefixes.Length > 0)
+				else
 				{
-					foreach (char p in prefixes.Where(p => !users[user].HasPrefix(p)))
+					foreach (char p in prefixes.Where(x => !users[user].HasPrefix(x)))
 					{
 						users[user].AddPrefix(p);
 					}
 				}
 			}
 		}
-		
-		public PrefixList GetUserPrefixes(String user)
+
+		public void AddPrefix(String username, char prefix)
+		{
+			lock (users)
+			{
+				PrefixList l;
+				if (!users.TryGetValue(username, out l))
+				{
+					l = new PrefixList(client);
+					users.Add(username, l);
+				}
+
+				if (!l.HasPrefix(prefix))
+				{
+					l.AddPrefix(prefix);
+				}
+			}
+		}
+
+		public String GetUserPrefixes(String user)
 		{
 			PrefixList list;
-			return users.TryGetValue(user, out list) ? list : null;
+			return users.TryGetValue(user, out list) ? list.ToString() : null;
 		}
 
 		public bool IsUserInChannel(String user)
@@ -88,6 +106,24 @@ namespace Atlantis.Net.Irc
 				if (users.ContainsKey(user))
 				{
 					users.Remove(user);
+				}
+			}
+		}
+
+		public void RemovePrefix(String username, char prefix)
+		{
+			lock (users)
+			{
+				PrefixList l;
+				if (!users.TryGetValue(username, out l))
+				{
+					l = new PrefixList(client);
+					users.Add(username, l);
+				}
+
+				if (l.HasPrefix(prefix))
+				{
+					l.RemovePrefix(prefix);
 				}
 			}
 		}

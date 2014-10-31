@@ -7,11 +7,13 @@
 namespace IrcClientDaemon
 {
     using System;
+    using System.Diagnostics;
     using System.Text;
     using System.Threading;
     using Atlantis.Net.Irc;
+    using Atlantis.Net.Irc.Linq;
 
-    public class Program
+	public class Program
     {
         public static void Main(string[] args)
         {
@@ -30,9 +32,33 @@ namespace IrcClientDaemon
 		                                             Console.WriteLine("Connected!");
 
 		                                             //((IrcClient)s).Send("JOIN #genesis2001");
-		                                             //((IrcClient)s).Send("JOIN #UnifiedTech");
+		                                             ((IrcClient)s).Send("JOIN #UnifiedTech");
 		                                             //((IrcClient)s).Send("PRIVMSG #UnifiedTech :Hello World!");
 	                                             };
+
+	        client.PrivmsgReceivedEvent += (s, e) =>
+	                                       {
+		                                       var cl = s as IrcClient;
+		                                       Debug.Assert(cl != null);
+
+		                                       if (e.Message.StartsWith("!priv") && e.IsChannel)
+		                                       {
+			                                       String nick = e.Source.GetNickFromSource();
+
+			                                       var c = cl.GetChannel(e.Target);
+			                                       PrefixList l;
+			                                       c.Users.TryGetValue(nick, out l);
+			                                       Debug.Assert(l != null,
+				                                       String.Format("Null prefix list found for user: {0}", e.Source));
+
+			                                       cl.Send(
+			                                               "PRIVMSG {0} :{1}, I see you have the following prefixes: {2} (Highest prefix: {3})",
+				                                       e.Target,
+				                                       nick,
+				                                       l,
+				                                       l.HighestPrefix);
+		                                       }
+	                                       };
 
 			/*
 	        client.JoinEvent += (s, e) => Console.WriteLine("[JOIN] {0} joined channel {1}", e.Nick, e.Channel);
