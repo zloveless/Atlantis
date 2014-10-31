@@ -10,20 +10,20 @@ namespace Atlantis.Net.Irc
 
 	public class ListMode
 	{
-		public ListMode(char mode, DateTime date, string mask, string setby)
+		public ListMode(char mode, String mask, String setter, DateTime? date = null)
 		{
 			Mode  = mode;
-			Date  = date;
 			Mask  = mask;
-			SetBy = setby;
+			Setter = setter;
+			Date = date.HasValue ? date.Value : DateTime.UtcNow;
 		}
 
 		public DateTime Date { get; private set; }
 
-		public string Mask { get; private set; }
+		public String Mask { get; private set; }
 
 		public char Mode { get; private set; }
 
-		public string SetBy { get; private set; }
+		public String Setter { get; private set; }
 	}
 }

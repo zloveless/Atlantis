@@ -16,11 +16,11 @@ namespace Atlantis.Net.Irc
 	{
 		private readonly IrcClient client;
 		private readonly Dictionary<String, PrefixList> users = new Dictionary<String, PrefixList>(StringComparer.OrdinalIgnoreCase);
-		private readonly Dictionary<char, String> modes = new Dictionary<char, String>();
-		private readonly List<ListMode> listModes = new List<ListMode>(); 
-
+		
 		private Channel()
 		{
+			Modes = new ModeCollection();
+			ListModes = new ListModeCollection();
 		}
 
 		internal Channel(IrcClient client, string channelName) : this()
@@ -33,19 +33,13 @@ namespace Atlantis.Net.Irc
 
 		public string Name { get; private set; }
 
-		public IEnumerable<ListMode> ListModes
-		{
-			get { return listModes; }
-		}
-		
-		public ReadOnlyDictionary<char, String> Modes
-		{
-			get { return new ReadOnlyDictionary<char, string>(modes); }
-		}
+		public ListModeCollection ListModes { get; private set; }
+
+		public ModeCollection Modes { get; private set; }
 
 		public ReadOnlyDictionary<String, PrefixList> Users
 		{
-			get { return new ReadOnlyDictionary<string, PrefixList>(users); }
+			get { return new ReadOnlyDictionary<String, PrefixList>(users); }
 		}
 
 		#endregion
@@ -58,7 +52,7 @@ namespace Atlantis.Net.Irc
 			{
 				if (!users.ContainsKey(user))
 				{
-					users.Add(user, prefixes == null ? new PrefixList(client) : new PrefixList(client, prefixes));
+					users.Add(user, prefixes.Length == 0 ? new PrefixList(client) : new PrefixList(client, prefixes));
 				}
 				else if (users.ContainsKey(user) && prefixes.Length > 0)
 				{
@@ -68,6 +62,12 @@ namespace Atlantis.Net.Irc
 					}
 				}
 			}
+		}
+		
+		public PrefixList GetUserPrefixes(String user)
+		{
+			PrefixList list;
+			return users.TryGetValue(user, out list) ? list : null;
 		}
 
 		public bool IsUserInChannel(String user)
@@ -80,13 +80,7 @@ namespace Atlantis.Net.Irc
 
 			return ret;
 		}
-
-		public PrefixList GetUserPrefixes(String user)
-		{
-			PrefixList list;
-			return users.TryGetValue(user, out list) ? list : null;
-		}
-
+		
 		public void RemoveUser(String user)
 		{
 			lock (users)

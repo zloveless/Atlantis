@@ -46,6 +46,8 @@ namespace Atlantis.Net.Irc
 		    client = new TcpClient();
 		    worker = new Thread(WorkerCallback);
 		    qWorker = new Thread(QueueWorkerCallback);
+			Modes = new ModeCollection();
+
 		    Encoding = Encoding.UTF8;
 
 		    //ConnectionTimeOutEvent += OnTimeout;
@@ -83,6 +85,7 @@ namespace Atlantis.Net.Irc
 		public event EventHandler<RfcNumericReceivedEventArgs> RfcNumericReceivedEvent;
 
 	    public event EventHandler<JoinPartEventArgs> JoinEvent;
+	    public event EventHandler<ModeChangedEventArgs> ModeChangedEvent;
 	    public event EventHandler<JoinPartEventArgs> PartEvent;
 
         #endregion
@@ -132,6 +135,11 @@ namespace Atlantis.Net.Irc
                 return ret;
             }
         }
+
+		/// <summary>
+		/// Gets a collection of modes set on the IrcClient.
+		/// </summary>
+		public ModeCollection Modes { get; private set; }
 
         /// <summary>
         /// Gets or sets the nick that represents us on the IRC server.

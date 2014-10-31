@@ -14,10 +14,65 @@ namespace Atlantis.Net.Irc
 	using System.Text;
 	using System.Text.RegularExpressions;
 	using System.Threading;
-	using System.Threading.Tasks;
 	using Atlantis.Linq;
 	using Linq;
 
+	#region External type: ModeType
+
+	public enum ModeType
+	{
+		/// <summary>
+		/// Channel mode has many separate parameters which can be by requesting +[x] where [x] is the mode with no parameters.
+		/// </summary>
+		LIST,
+
+		/// <summary>
+		/// Channel mode that always takes a parameter, regardless whether it's set or unset.
+		/// </summary>
+		SETUNSET,
+
+		/// <summary>
+		/// Channel mode that requires a parameter only when being set, otherwise has no parameter.
+		/// </summary>
+		SET,
+
+		/// <summary>
+		/// Channel mode should never have a parameter associated with it.
+		/// </summary>
+		NOPARAM,
+
+		/// <summary>
+		/// Mode that grants a user access on a channel. The associated prefix should be stored with the user, not the channel.
+		/// </summary>
+		ACCESS,
+
+		/// <summary>
+		/// Generic mode representing a user mode that should be stored for the IrcClient (ourselves). Occurs when target and source are the same value.
+		/// </summary>
+		USER
+	}
+
+	#endregion
+
+	#region External type: GenericMode
+
+	public class GenericMode
+	{
+		public char Mode { get; set; }
+
+		public String Parameter { get; set; }
+
+		public bool IsSet { get; set; }
+
+		public String Setter { get; set; }
+
+		public String Target { get; set; }
+
+		public ModeType Type { get; set; }
+	}
+
+	#endregion
+	
 	public partial class IrcClient
 	{
 		#region Fields
@@ -26,7 +81,6 @@ namespace Atlantis.Net.Irc
 		private bool useExtendedNames;
 		private bool useUserhostNames;
 		private DateTime lastMessage;
-
 		private String accessRegex;
 
 		#endregion
@@ -46,6 +100,68 @@ namespace Atlantis.Net.Irc
 		}
 
 		#endregion
+
+		protected IEnumerable<GenericMode> ParseChanModes(String modestr, params String[] parameters)
+		{
+			bool set = false;
+			for (int modeIndex = 0, parameterIndex = 0; modeIndex < modestr.Length; ++modeIndex)
+			{
+				if (modestr[modeIndex] == '+') set = true;
+				else if (modestr[modeIndex] == '-') set = false;
+				else if (info.ListModes.Contains(modestr[modeIndex]))
+				{ // List modes always require a parameter.
+					String arg = parameters[parameterIndex];
+					parameterIndex++;
+					yield return new GenericMode {Mode = modestr[modeIndex], IsSet = set, Parameter = arg, Type = ModeType.LIST};
+				}
+				else if (info.ModesWithParameter.Contains(modestr[modeIndex]))
+				{ // Modes that always take a parameter, regardless.
+					String arg = parameters[parameterIndex];
+					parameterIndex++;
+					yield return
+						new GenericMode {Mode = modestr[modeIndex], IsSet = set, Parameter = arg, Type = ModeType.SETUNSET};
+				}
+				else if (info.ModesWithParameterWhenSet.Contains(modestr[modeIndex]))
+				{ // Modes that only take a parameter when being set.
+					String arg = null;
+					if (set)
+					{
+						arg = parameters[parameterIndex];
+						parameterIndex++;
+					}
+
+					yield return new GenericMode {Mode = modestr[modeIndex], IsSet = set, Parameter = arg, Type = ModeType.SET};
+				}
+				else if (info.ModesWithNoParameter.Contains(modestr[modeIndex]))
+				{ // Modes that never take a parameter.
+					yield return new GenericMode {Mode = modestr[modeIndex], IsSet = set, Type = ModeType.NOPARAM};
+				}
+				else if (info.PrefixModes.Contains(modestr[modeIndex]))
+				{ // Modes that indicate access on a channel.
+					String arg = parameters[parameterIndex];
+					parameterIndex++;
+
+					yield return
+						new GenericMode {Mode = modestr[modeIndex], IsSet = set, Parameter = arg, Type = ModeType.ACCESS};
+				}
+			}
+		}
+
+		protected IEnumerable<GenericMode> ParseUserModes(String modestr, params String[] parameters)
+		{
+			bool set = false;
+			foreach (char t in modestr)
+			{
+				switch (t)
+				{
+					case '+': set = true; break;
+					case '-': set = false; break;
+					default: 
+						yield return new GenericMode {Mode = t, IsSet = set, Type = ModeType.USER};
+						break;
+				}
+			}
+		}
 
 		#region Events Handlers
 
@@ -120,6 +236,11 @@ namespace Atlantis.Net.Irc
 			}
 		}
 
+		protected virtual void OnModeChanged(char mode, String parameter, String setter, String target, ModeType type)
+		{
+			ModeChangedEvent.Raise(this, new ModeChangedEventArgs(mode, parameter, setter, target, type));
+		}
+
 		protected virtual void OnNotice(String source, String target, String message)
 		{
 			NoticeReceivedEvent.Raise(this, new MessageReceivedEventArgs(source, target, message));
@@ -148,13 +269,69 @@ namespace Atlantis.Net.Irc
 			PartEvent.Raise(this, new JoinPartEventArgs(sourceNick, target, message, me));
 		}
 
-		protected virtual void OnPreModeParse(String source, String target, String modestr, String[] parameters)
-		{
-			Console.WriteLine("[MODE] {0} set mode(s) on {1}. (modestr: {2}) (parameters: {3})",
-				source,
-				target,
-				modestr,
-				String.Join(" ", parameters));
+		private void OnPreModeParse(String source, String target, String modestr, String[] parameters)
+		{ // TODO: refactor method name since this isn't going to be a hook-point for overrides
+			String sourceNick = source.GetNickFromSource();
+
+			if (target.StartsWith("#"))
+			{
+				var c = GetChannel(target);
+
+				var modes = ParseChanModes(modestr, parameters);
+				foreach (var item in modes)
+				{
+					if (item.Type == ModeType.LIST)
+					{
+						if (item.IsSet)
+						{
+							c.ListModes.Add(item.Mode, item.Parameter, source);
+						}
+						else
+						{
+							c.ListModes.Remove(item.Mode, item.Parameter);
+						}
+					}
+					else if (item.Type == ModeType.SETUNSET || item.Type == ModeType.SET || item.Type == ModeType.NOPARAM)
+					{
+						if (item.IsSet)
+						{
+							c.Modes.Add(item.Mode, item.Parameter);
+						}
+						else
+						{
+							c.Modes.Remove(item.Mode);
+						}
+					}
+					else if (item.Type == ModeType.ACCESS)
+					{
+						int prefixIndex = info.PrefixModes.IndexOf(item.Mode);
+						char prefix = info.Prefixes[prefixIndex];
+
+						c.AddOrUpdateUser(sourceNick, new[] {prefix});
+					}
+
+					OnModeChanged(item.Mode, item.Parameter, source, target, item.Type);
+				}
+			}
+			else
+			{ // User mode.
+				Debug.WriteLine("[MODE] Received usermode(s) {0} (Source: {1} - Target: {2})", modestr, source, target);
+
+				var modes = ParseUserModes(modestr, parameters); // I don't think parameters are available for usermodes.
+				foreach (var item in modes)
+				{
+					if (item.IsSet)
+					{
+						Modes.Add(item.Mode);
+					}
+					else
+					{
+						Modes.Remove(item.Mode);
+					}
+
+					OnModeChanged(item.Mode, null, source, target, item.Type);
+				}
+			}
 		}
 
 		protected virtual async void OnPreRegister()
