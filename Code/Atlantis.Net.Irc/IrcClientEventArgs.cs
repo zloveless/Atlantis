@@ -125,11 +125,11 @@ namespace Atlantis.Net.Irc
 	{
 		public QuitEventArgs(string source, string message)
 		{
-			Nick = source;
+			Source = source;
 			Message = message;
 		}
 
-		public string Nick { get; private set; }
+		public string Source { get; private set; }
 
 		public string Message { get; private set; }
 	}

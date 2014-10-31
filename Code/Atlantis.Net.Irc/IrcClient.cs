@@ -80,10 +80,10 @@ namespace Atlantis.Net.Irc
 		public event EventHandler<MessageReceivedEventArgs> NoticeReceivedEvent;
 		public event EventHandler<MessageReceivedEventArgs> PrivmsgReceivedEvent;
 		public event EventHandler<RfcNumericReceivedEventArgs> RfcNumericReceivedEvent;
-
-	    public event EventHandler<JoinPartEventArgs> JoinEvent;
+		public event EventHandler<JoinPartEventArgs> JoinEvent;
 	    public event EventHandler<ModeChangedEventArgs> ModeChangedEvent;
 	    public event EventHandler<JoinPartEventArgs> PartEvent;
+	    public event EventHandler<QuitEventArgs> QuitEvent;
 
 		#endregion
 

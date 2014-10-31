@@ -181,7 +181,7 @@ namespace Atlantis.Net.Irc
 			}
 
 			var c = GetChannel(target);
-			if (!c.IsUserInChannel(nick))
+			if (!c.HasUser(nick))
 			{
 				c.AddOrUpdateUser(nick);
 			}
@@ -306,7 +306,6 @@ namespace Atlantis.Net.Irc
 				await SendNow("PASS {0}", Password);
 			}
 
-			//await SendNow("NICK {0}", Nick);
 			SetNick(Nick);
 			await SendNow("USER {0} 0 * {1}", Ident, RealName.Contains(" ") ? String.Concat(":", RealName) : RealName);
 
@@ -321,6 +320,21 @@ namespace Atlantis.Net.Irc
 		protected virtual void OnPrivmsg(String source, String target, String message)
 		{
 			PrivmsgReceivedEvent.Raise(this, new MessageReceivedEventArgs(source, target, message));
+		}
+
+		protected virtual void OnQuit(String source, String message)
+		{
+			String sourceNick = source.GetNickFromSource();
+
+			lock (channels)
+			{
+				foreach (var c in channels.Values.Where(x => x.HasUser(sourceNick)))
+				{
+					c.RemoveUser(sourceNick);
+				}
+			}
+
+			QuitEvent.Raise(this, new QuitEventArgs(source, message));
 		}
 
 		protected virtual async void OnRfcEvent(String command, String source, String[] parameters)
@@ -411,6 +425,10 @@ namespace Atlantis.Net.Irc
 			{
 				OnPreModeParse(source, parameters[0], parameters[1], parameters.Skip(2).ToArray());
 			}
+			else if (command.EqualsIgnoreCase("QUIT"))
+			{
+				OnQuit(source, String.Join(" ", parameters));
+			}
 			else
 			{
 				Debug.WriteLine("[{0}] Received command from {1} with {2} parameters: {{{3}}}",
@@ -425,7 +443,7 @@ namespace Atlantis.Net.Irc
 		{
 			RfcNumericReceivedEvent.Raise(this, new RfcNumericReceivedEventArgs(numeric, String.Join(" ", parameters)));
 
-			if (numeric == 1)
+			if (numeric == RPL_WELCOME)
 			{ // Welcome packet
 				connectingLock.Release();
 				ConnectionEstablishedEvent.Raise(this, EventArgs.Empty);

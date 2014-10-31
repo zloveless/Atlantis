@@ -1,5 +1,5 @@
 ﻿// -----------------------------------------------------------------------------
-//  <copyright file="Target.cs" company="Zack Loveless">
+//  <copyright file="Channel.cs" company="Zack Loveless">
 //      Copyright (c) Zack Loveless.  All rights reserved.
 //  </copyright>
 // -----------------------------------------------------------------------------
@@ -12,11 +12,13 @@ namespace Atlantis.Net.Irc
 	using System.Linq;
 	using Atlantis.Linq;
 
-	public class Channel : IEquatable<String>
+	public class Channel : IEquatable<String>, IEquatable<Channel>
 	{
 		private readonly IrcClient client;
-		private readonly Dictionary<String, PrefixList> users = new Dictionary<String, PrefixList>(StringComparer.OrdinalIgnoreCase);
-		
+
+		private readonly Dictionary<String, PrefixList> users =
+			new Dictionary<String, PrefixList>(StringComparer.OrdinalIgnoreCase);
+
 		private Channel()
 		{
 			Modes = new ModeCollection();
@@ -26,7 +28,7 @@ namespace Atlantis.Net.Irc
 		internal Channel(IrcClient client, string channelName) : this()
 		{
 			this.client = client;
-			Name        = channelName;
+			Name = channelName;
 		}
 
 		#region Properties
@@ -56,7 +58,7 @@ namespace Atlantis.Net.Irc
 				}
 				else
 				{
-					foreach (char p in prefixes.Where(x => !users[user].HasPrefix(x)))
+					foreach (var p in prefixes.Where(x => !users[user].HasPrefix(x)))
 					{
 						users[user].AddPrefix(p);
 					}
@@ -88,7 +90,7 @@ namespace Atlantis.Net.Irc
 			return users.TryGetValue(user, out list) ? list.ToString() : null;
 		}
 
-		public bool IsUserInChannel(String user)
+		public bool HasUser(String user)
 		{
 			bool ret;
 			lock (users)
@@ -98,7 +100,7 @@ namespace Atlantis.Net.Irc
 
 			return ret;
 		}
-		
+
 		public void RemoveUser(String user)
 		{
 			lock (users)
@@ -133,10 +135,10 @@ namespace Atlantis.Net.Irc
 		#region Overrides of Object
 
 		/// <summary>
-		/// Indicates whether the current object is equal to another object of the same type.
+		///     Indicates whether the current object is equal to another object of the same type.
 		/// </summary>
 		/// <returns>
-		/// true if the current object is equal to the <paramref name="other"/> parameter; otherwise, false.
+		///     true if the current object is equal to the <paramref name="other" /> parameter; otherwise, false.
 		/// </returns>
 		/// <param name="other">An object to compare with this object.</param>
 		public bool Equals(string other)
@@ -145,10 +147,33 @@ namespace Atlantis.Net.Irc
 		}
 
 		/// <summary>
-		/// Returns a string that represents the current object.
+		///     Serves as a hash function for a particular type.
 		/// </summary>
 		/// <returns>
-		/// A string that represents the current object.
+		///     A hash code for the current object.
+		/// </returns>
+		public override int GetHashCode()
+		{
+			return Name.GetHashCode();
+		}
+
+		/// <summary>
+		/// Indicates whether the current object is equal to another object of the same type.
+		/// </summary>
+		/// <returns>
+		/// true if the current object is equal to the <paramref name="other"/> parameter; otherwise, false.
+		/// </returns>
+		/// <param name="other">An object to compare with this object.</param>
+		public bool Equals(Channel other)
+		{
+			return Name.EqualsIgnoreCase(other.Name);
+		}
+
+		/// <summary>
+		///     Returns a string that represents the current object.
+		/// </summary>
+		/// <returns>
+		///     A string that represents the current object.
 		/// </returns>
 		public override string ToString()
 		{
