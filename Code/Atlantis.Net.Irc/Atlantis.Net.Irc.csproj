@@ -48,6 +48,8 @@
     <Compile Include="ListModeCollection.cs" />
     <Compile Include="ModeCollection.cs" />
     <Compile Include="ModeType.cs" />
+    <Compile Include="PrefixComparer.cs" />
+    <Compile Include="PrefixListComparer.cs" />
     <Compile Include="Properties\ReSharper.Annotations.cs" />
     <Compile Include="ConnectOptions.cs" />
     <Compile Include="IrcClient.cs" />

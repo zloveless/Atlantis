@@ -11,14 +11,14 @@ namespace Atlantis.Net.Irc
 	using System;
 	using System.Linq;
 
-	public class PrefixList
+	public class PrefixList : IComparable<PrefixList>, IComparable<char>
 	{
-		private readonly IrcClient client;
+		private readonly IrcClient _client;
 		private readonly char[] prefixes;
 
 		public PrefixList(IrcClient client)
 		{
-			this.client = client;
+			_client = client;
 			prefixes = new char[client.Prefixes.Length];
 		}
 
@@ -38,73 +38,109 @@ namespace Atlantis.Net.Irc
 			get { return prefixes.Length > 0 ? prefixes[0] : (char)0; }
 		}
 
-		public bool AddPrefix(char prefix)
-		{
-			for (var i = 0; i < prefixes.Length; ++i)
-			{
-				if (prefixes[i] == 0 || prefixes[i] == prefix)
-				{
-					var success = prefixes[i] == 0;
-					prefixes[i] = prefix;
+	    #region Methods
 
-					if (success)
-					{
-						Resort();
-					}
+	    public bool AddPrefix(char prefix)
+	    {
+	        for (var i = 0; i < prefixes.Length; ++i)
+	        {
+	            if (prefixes[i] == 0 || prefixes[i] == prefix)
+	            {
+	                var success = prefixes[i] == 0;
+	                prefixes[i] = prefix;
 
-					return success;
-				}
-			}
+	                if (success)
+	                {
+	                    Resort();
+	                }
 
-			return false;
-		}
+	                return success;
+	            }
+	        }
 
-		public bool HasPrefix(char prefix)
-		{
-			return prefixes.Any(t => t == prefix);
-		}
+	        return false;
+	    }
 
-		public bool RemovePrefix(char prefix)
-		{
-			for (var i = 0; i < prefixes.Length; ++i)
-			{
-				if (prefixes[i] == prefix)
-				{
-					prefixes[i] = (char)0;
-					Resort();
+	    public bool HasPrefix(char prefix)
+	    {
+	        return prefixes.Any(t => t == prefix);
+	    }
 
-					return true;
-				}
-			}
+	    public bool RemovePrefix(char prefix)
+	    {
+	        for (var i = 0; i < prefixes.Length; ++i)
+	        {
+	            if (prefixes[i] == prefix)
+	            {
+	                prefixes[i] = (char)0;
+	                Resort();
 
-			return false;
-		}
+	                return true;
+	            }
+	        }
 
-		protected void Resort()
-		{
-			Array.Sort(prefixes, Sort);
-		}
+	        return false;
+	    }
 
-		protected int Sort(char a, char b)
-		{
-			if (a == 0 && b == 0) return 0;
-			if (a == 0) return 1;
-			if (b == 0) return -1;
+	    protected void Resort()
+	    {
+	        Array.Sort(prefixes, Sort);
+	    }
 
-			var aIndex = client.Prefixes.IndexOf(a);
-			var bIndex = client.Prefixes.IndexOf(b);
+	    protected int Sort(char a, char b)
+	    {
+	        if (a == 0 && b == 0) return 0;
+	        if (a == 0) return 1;
+	        if (b == 0) return -1;
 
-			if (aIndex < 0 || bIndex < 0)
-			{
-				return 0;
-			}
+	        var aIndex = _client.Prefixes.IndexOf(a);
+	        var bIndex = _client.Prefixes.IndexOf(b);
 
-			return aIndex - bIndex;
-		}
+	        if (aIndex < 0 || bIndex < 0)
+	        {
+	            return 0;
+	        }
 
+	        return aIndex - bIndex;
+	    }
+
+	    #endregion
+
+	    #region Implementation of IComparable<in PrefixList>
+
+	    /// <summary>
+	    /// Compares the current object with another object of the same type.
+	    /// </summary>
+	    /// <returns>
+	    /// A value that indicates the relative order of the objects being compared. The return value has the following meanings: Value Meaning Less than zero This object is less than the <paramref name="other"/> parameter.Zero This object is equal to <paramref name="other"/>. Greater than zero This object is greater than <paramref name="other"/>. 
+	    /// </returns>
+	    /// <param name="other">An object to compare with this object.</param>
+	    public int CompareTo(PrefixList other)
+	    {
+	        return new PrefixListComparer(_client).Compare(this, other);
+	    }
+
+	    #endregion
+        
+	    #region Implementation of IComparable<in char>
+
+	    /// <summary>
+	    /// Compares the current object with another object of the same type.
+	    /// </summary>
+	    /// <returns>
+	    /// A value that indicates the relative order of the objects being compared. The return value has the following meanings: Value Meaning Less than zero This object is less than the <paramref name="other"/> parameter.Zero This object is equal to <paramref name="other"/>. Greater than zero This object is greater than <paramref name="other"/>. 
+	    /// </returns>
+	    /// <param name="other">An object to compare with this object.</param>
+	    public int CompareTo(char other)
+	    {
+	        return new PrefixComparer(_client).Compare(HighestPrefix, other);
+	    }
+
+	    #endregion
+        
 		#region Overrides of Object
-
-		/// <summary>
+        
+	    /// <summary>
 		/// Returns a string that represents the current object.
 		/// </summary>
 		/// <returns>
