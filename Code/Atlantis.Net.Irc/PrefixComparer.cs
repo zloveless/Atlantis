@@ -25,8 +25,8 @@ namespace Atlantis.Net.Irc
         /// </summary>
         /// <returns>
         ///     A signed integer that indicates the relative values of <paramref name="a" /> and <paramref name="b" />, as
-        ///     shown in the following table.Value Meaning Less than zero<paramref name="a" /> is less than
-        ///     <paramref name="b" />.Zero<paramref name="a" /> equals <paramref name="b" />.Greater than zero
+        ///     shown in the following table. Value Meaning Less than zero <paramref name="a" /> is less than
+        ///     <paramref name="b" />. Zero <paramref name="a" /> equals <paramref name="b" />. Greater than zero
         ///     <paramref name="a" /> is greater than <paramref name="b" />.
         /// </returns>
         /// <param name="a">The first object to compare.</param>
