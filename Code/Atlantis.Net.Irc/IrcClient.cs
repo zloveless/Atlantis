@@ -22,20 +22,18 @@ namespace Atlantis.Net.Irc
     {
 	    #region Fields
 
-	    private readonly Queue<String> messageQueue = new Queue<String>();
-	    private readonly IDictionary<String, Channel> channels = new ConcurrentDictionary<String, Channel>();
+	    private readonly IDictionary<String, Channel> _channels = new ConcurrentDictionary<String, Channel>();
 
 	    private readonly SemaphoreSlim connectingLock = new SemaphoreSlim(0, 1);
 	    private readonly SemaphoreSlim writingLock = new SemaphoreSlim(1, 1);
 
 	    private readonly TcpClient client;
 	    private readonly Thread worker;
-	    private readonly Thread qWorker;
 
 	    private NetworkStream stream;
 	    private StreamReader reader;
 	    private bool requestShutdown;
-	    private string currentNick;
+	    private string _currentNick;
 
 	    #endregion
 
@@ -45,7 +43,6 @@ namespace Atlantis.Net.Irc
 	    {
 		    client = new TcpClient();
 		    worker = new Thread(WorkerCallback);
-		    qWorker = new Thread(QueueWorkerCallback);
 			Modes = new ModeCollection();
 
 		    Encoding = Encoding.UTF8;
@@ -182,9 +179,9 @@ namespace Atlantis.Net.Irc
         {
             Channel c;
 
-	        lock (channels)
+	        lock (_channels)
 	        {
-		        if (channels.TryGetValue(channelName, out c))
+		        if (_channels.TryGetValue(channelName, out c))
 		        {
 			        return c;
 		        }
@@ -195,7 +192,7 @@ namespace Atlantis.Net.Irc
 		        }
 
 		        c = new Channel(this, channelName);
-		        channels.Add(c.Name, c);
+		        _channels.Add(c.Name, c);
 	        }
 
             return c;
@@ -203,11 +200,11 @@ namespace Atlantis.Net.Irc
 
 	    public void RemoveChannel(String channelName)
 	    {
-		    lock (channels)
+		    lock (_channels)
 		    {
-			    if (channels.ContainsKey(channelName))
+			    if (_channels.ContainsKey(channelName))
 			    {
-				    channels.Remove(channelName);
+				    _channels.Remove(channelName);
 			    }
 		    }
 	    }
@@ -232,41 +229,9 @@ namespace Atlantis.Net.Irc
 
 	    public async void SetNick(String newNick)
 	    {
-		    await SendNow("NICK {0}", newNick);
-		    currentNick = newNick;
+		    await Send("NICK {0}", newNick);
+		    _currentNick = newNick;
 	    }
-
-	    private async void Send(String message)
-        {
-            if (!Connected) return;
-            
-            await writingLock.WaitAsync();
-
-            byte[] buf = Encoding.GetBytes(message);
-            await stream.WriteAsync(buf, 0, buf.Length);
-            await stream.FlushAsync();
-
-            writingLock.Release();
-        }
-
-        /// <summary>
-        /// Appends the specified message into the message queue for writing to the IRC server.
-        /// </summary>
-        /// <param name="format"></param>
-        /// <param name="args"></param>
-        [StringFormatMethod("format")]
-        public void Send(String format, params object[] args)
-        {
-            if (!Connected) return;
-
-            var sb = new StringBuilder();
-            sb.AppendFormat(format, args).Append('\n');
-
-            lock (messageQueue)
-            {
-                messageQueue.Enqueue(sb.ToString());
-            }
-        }
 
         /// <summary>
         /// Sends the specified formatted message to the IRC server without waiting for the message queue.
@@ -274,7 +239,7 @@ namespace Atlantis.Net.Irc
         /// <param name="format"></param>
         /// <param name="args"></param>
         /// <returns></returns>
-        public async Task<bool> SendNow(String format, params object[] args)
+        public async Task<bool> Send(String format, params object[] args)
         {
             if (!Connected) return false;
 
@@ -325,11 +290,11 @@ namespace Atlantis.Net.Irc
                 requestShutdown = true;
 	            if (String.IsNullOrEmpty(reason))
 	            {
-		            await SendNow("QUIT");
+		            await Send("QUIT");
 	            }
 	            else
 	            {
-		            await SendNow("QUIT :{0}", reason);
+		            await Send("QUIT :{0}", reason);
 	            }
             }
         }

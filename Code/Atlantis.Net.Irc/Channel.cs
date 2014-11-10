@@ -84,6 +84,20 @@ namespace Atlantis.Net.Irc
 			}
 		}
 
+	    public void ChangeNick(String previousNick, String currentNick)
+	    {
+	        PrefixList l;
+	        users.TryGetValue(previousNick, out l);
+
+	        if (l == null)
+	        {
+	            l = new PrefixList(client);
+	        }
+
+	        users.Remove(previousNick);
+	        users.Add(currentNick, l);
+	    }
+
 		public String GetUserPrefixes(String user)
 		{
 			PrefixList list;

@@ -13,7 +13,6 @@ namespace Atlantis.Net.Irc
 	using System.Linq;
 	using System.Text;
 	using System.Text.RegularExpressions;
-	using System.Threading;
 	using Atlantis.Linq;
 	using Linq;
 
@@ -107,11 +106,11 @@ namespace Atlantis.Net.Irc
 			}
 		}
 
-		private void FillChannelLists(String target)
+		private async void FillChannelLists(String target)
 		{
 			foreach (char c in info.ListModes)
 			{
-				Send("MODE {0} +{1}", target, c);
+				await Send("MODE {0} +{1}", target, c);
 			}
 		}
 
@@ -165,10 +164,10 @@ namespace Atlantis.Net.Irc
 			}
 		}
 
-		protected virtual void OnJoin(String source, String target)
+		protected virtual async void OnJoin(String source, String target)
 		{
 			String nick = source.GetNickFromSource();
-			bool me = currentNick.EqualsIgnoreCase(nick);
+			bool me = _currentNick.EqualsIgnoreCase(nick);
 
 			if (me && FillListsOnJoin)
 			{
@@ -177,7 +176,7 @@ namespace Atlantis.Net.Irc
 
 			if (StrictNames || me)
 			{
-				Send("NAMES {0}", target);
+				await Send("NAMES {0}", target);
 			}
 
 			var c = GetChannel(target);
@@ -194,15 +193,30 @@ namespace Atlantis.Net.Irc
 			ModeChangedEvent.Raise(this, new ModeChangedEventArgs(mode, parameter, setter, target, type));
 		}
 
+	    protected virtual void OnNickChanged(String source, String currentNick)
+	    {
+	        String previousNick = source.GetNickFromSource();
+
+	        if (_currentNick.EqualsIgnoreCase(previousNick))
+	        { // our nick has updated.
+	            _currentNick = currentNick;
+	        }
+
+	        foreach (var item in _channels.Select(x => x.Value))
+	        {
+	            item.ChangeNick(previousNick, currentNick);
+	        }
+	    }
+
 		protected virtual void OnNotice(String source, String target, String message)
 		{
 			NoticeReceivedEvent.Raise(this, new MessageReceivedEventArgs(source, target, message));
 		}
 
-		protected virtual void OnPart(String source, String target, String message)
+		protected virtual async void OnPart(String source, String target, String message)
 		{
 			String sourceNick = source.GetNickFromSource();
-			bool me = currentNick.EqualsIgnoreCase(sourceNick);
+			bool me = _currentNick.EqualsIgnoreCase(sourceNick);
 			
 			if (me)
 			{
@@ -216,7 +230,7 @@ namespace Atlantis.Net.Irc
 
 			if (StrictNames && !me)
 			{
-				Send("NAMES {0}", target);
+				await Send("NAMES {0}", target);
 			}
 
 			PartEvent.Raise(this, new JoinPartEventArgs(sourceNick, target, message, me));
@@ -303,17 +317,17 @@ namespace Atlantis.Net.Irc
 
 			if (!String.IsNullOrEmpty(Password))
 			{
-				await SendNow("PASS {0}", Password);
+				await Send("PASS {0}", Password);
 			}
 
 			SetNick(Nick);
-			await SendNow("USER {0} 0 * {1}", Ident, RealName.Contains(" ") ? String.Concat(":", RealName) : RealName);
+			await Send("USER {0} 0 * {1}", Ident, RealName.Contains(" ") ? String.Concat(":", RealName) : RealName);
 
 			/* This causes a registration timeout.
 			if (EnableV3)
 			{
 				await Task.Delay(500);
-				await SendNow("CAP LS"); // Request capabilities from the IRC server.
+				await Send("CAP LS"); // Request capabilities from the IRC server.
 			}*/
 		}
 
@@ -326,9 +340,9 @@ namespace Atlantis.Net.Irc
 		{
 			String sourceNick = source.GetNickFromSource();
 
-			lock (channels)
+			lock (_channels)
 			{
-				foreach (var c in channels.Values.Where(x => x.HasUser(sourceNick)))
+				foreach (var c in _channels.Values.Where(x => x.HasUser(sourceNick)))
 				{
 					c.RemoveUser(sourceNick);
 				}
@@ -341,7 +355,7 @@ namespace Atlantis.Net.Irc
 		{
 			if (command.EqualsIgnoreCase("PING"))
 			{
-				await SendNow("PONG {0}", parameters[0]);
+				await Send("PONG {0}", parameters[0]);
 			}
 			else if (command.EqualsIgnoreCase("CAP"))
 			{ // :wolverine.de.cncfps.com CAP 574AAACA9 LS :away-notify extended-join account-notify multi-prefix sasl tls userhost-in-names
@@ -364,7 +378,7 @@ namespace Atlantis.Net.Irc
 
 				if (caps.Length > 0)
 				{
-					await SendNow("CAP REQ :{0}", caps.ToString().Trim(' '));
+					await Send("CAP REQ :{0}", caps.ToString().Trim(' '));
 				}
 			}
 			else if (command.EqualsIgnoreCase("PRIVMSG"))
@@ -429,6 +443,10 @@ namespace Atlantis.Net.Irc
 			{
 				OnQuit(source, String.Join(" ", parameters));
 			}
+            else if (command.EqualsIgnoreCase("NICK"))
+            {
+                OnNickChanged(source, parameters[0]);
+            }
 			else
 			{
 				Debug.WriteLine("[{0}] Received command from {1} with {2} parameters: {{{3}}}",
@@ -511,13 +529,13 @@ namespace Atlantis.Net.Irc
 						// This will format a RPL_NAMES using every single prefix the user has on a channel.
 
 						useExtendedNames = true;
-						await SendNow("PROTOCTL NAMESX");
+						await Send("PROTOCTL NAMESX");
 					}
 
 					if (args.ContainsKey("UHNAMES"))
 					{
 						useUserhostNames = true;
-						await SendNow("PROTOCTL UHNAMES");
+						await Send("PROTOCTL UHNAMES");
 					}
 				}
 			}
@@ -572,7 +590,6 @@ namespace Atlantis.Net.Irc
 		protected virtual void WorkerCallback(object state)
 		{
 			stream = client.GetStream();
-			qWorker.Start();
 
 			OnPreRegister(); // Send registration data.
 
@@ -598,22 +615,6 @@ namespace Atlantis.Net.Irc
 						}
 					}
 				}
-			}
-		}
-
-		protected virtual void QueueWorkerCallback()
-		{
-			while (Connected)
-			{
-				lock (messageQueue)
-				{
-					if (messageQueue.Count > 0)
-					{
-						Send(messageQueue.Dequeue());
-					}
-				}
-
-				Thread.Sleep(QueueInterval);
 			}
 		}
 
