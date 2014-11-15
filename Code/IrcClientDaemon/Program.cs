@@ -27,16 +27,16 @@ namespace IrcClientDaemon
 	                               //EnableV3 = true,
                                };
 
-	        client.ConnectionEstablishedEvent += (s, e) =>
+	        client.ConnectionEstablishedEvent += async (s, e) =>
 	                                             {
 		                                             Console.WriteLine("Connected!");
 
 		                                             //((IrcClient)s).Send("JOIN #genesis2001");
-		                                             ((IrcClient)s).Send("JOIN #UnifiedTech");
+		                                             await ((IrcClient)s).Send("JOIN #test");
 		                                             //((IrcClient)s).Send("PRIVMSG #UnifiedTech :Hello World!");
 	                                             };
 
-	        client.PrivmsgReceivedEvent += (s, e) =>
+	        client.PrivmsgReceivedEvent += async (s, e) =>
 	                                       {
 		                                       var cl = s as IrcClient;
 		                                       Debug.Assert(cl != null);
@@ -51,13 +51,27 @@ namespace IrcClientDaemon
 			                                       Debug.Assert(l != null,
 				                                       String.Format("Null prefix list found for user: {0}", e.Source));
 
-			                                       cl.Send(
+			                                       await cl.Send(
 			                                               "PRIVMSG {0} :{1}, I see you have the following prefixes: {2} (Highest prefix: {3})",
 				                                       e.Target,
 				                                       nick,
 				                                       l,
 				                                       l.HighestPrefix);
 		                                       }
+                                               else if (e.Message.StartsWith("!test") && e.IsChannel)
+                                               {
+                                                   var buf = new byte[30];
+                                                   var rnd = new Random(Guid.NewGuid().GetHashCode());
+
+                                                   for (var i = 0; i < 100; ++i)
+                                                   {
+                                                       rnd.NextBytes(buf);
+
+                                                       var str = BitConverter.ToString(buf).Replace("-", "");
+                                                       
+                                                       await ((IrcClient)s).Send("PRIVMSG {0} :{1}", e.Target, str);
+                                                   }
+                                               }
 	                                       };
 
 			/*

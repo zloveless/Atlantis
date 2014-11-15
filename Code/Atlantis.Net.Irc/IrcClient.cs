@@ -31,6 +31,7 @@ namespace Atlantis.Net.Irc
 	    private readonly Thread worker;
 
 	    private NetworkStream stream;
+        private StreamWriter writer;
 	    private StreamReader reader;
 	    private bool requestShutdown;
 	    private string _currentNick;
@@ -241,20 +242,29 @@ namespace Atlantis.Net.Irc
         /// <returns></returns>
         public async Task<bool> Send(String format, params object[] args)
         {
-            if (!Connected) return false;
+            if (!Connected)
+            {
+                return false;
+            }
 
             await writingLock.WaitAsync();
 
-            var message = new StringBuilder();
-            message.AppendFormat(format, args).Append('\n');
+            try
+            {
+                var message = new StringBuilder();
+                message.AppendFormat(format, args).Append('\n');
 
-            byte[] buf = Encoding.GetBytes(message.ToString());
-            await stream.WriteAsync(buf, 0, buf.Length);
-            await stream.FlushAsync();
-
-            writingLock.Release();
-
-            return true;
+                byte[] buf = Encoding.GetBytes(message.ToString());
+                
+                await stream.WriteAsync(buf, 0, buf.Length);
+                await stream.FlushAsync();
+                
+                return true;
+            }
+            finally
+            {
+                writingLock.Release();
+            }
         }
 
         public async Task<bool> Start()
