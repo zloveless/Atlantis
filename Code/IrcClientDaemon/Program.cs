@@ -43,7 +43,7 @@ namespace IrcClientDaemon
 
 		                                       if (e.Message.StartsWith("!priv") && e.IsChannel)
 		                                       {
-			                                       String nick = e.Source.GetNickFromSource();
+                                                   String nick = e.Source.GetNickFromSource();
 
 			                                       var c = cl.GetChannel(e.Target);
 			                                       PrefixList l;

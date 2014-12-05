@@ -20,70 +20,71 @@ namespace Atlantis.Net.Irc
 
     public partial class IrcClient
     {
-	    #region Fields
+        #region Fields
 
-	    private readonly IDictionary<String, Channel> _channels = new ConcurrentDictionary<String, Channel>();
+        private readonly IDictionary<String, Channel> _channels = new ConcurrentDictionary<String, Channel>();
 
-	    private readonly SemaphoreSlim connectingLock = new SemaphoreSlim(0, 1);
-	    private readonly SemaphoreSlim writingLock = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim connectingLock = new SemaphoreSlim(0, 1);
+        private readonly SemaphoreSlim writingLock = new SemaphoreSlim(1, 1);
 
-	    private readonly TcpClient client;
-	    private readonly Thread worker;
+        private readonly TcpClient client;
+        private readonly Thread worker;
 
-	    private NetworkStream stream;
+        private NetworkStream stream;
         private StreamWriter writer;
-	    private StreamReader reader;
-	    private bool requestShutdown;
-	    private string _currentNick;
+        private StreamReader reader;
+        private bool requestShutdown;
+        private string _currentNick;
 
-	    #endregion
+        #endregion
 
-	    #region Constructors
+        #region Constructors
 
-	    public IrcClient()
-	    {
-		    client = new TcpClient();
-		    worker = new Thread(WorkerCallback);
-			Modes = new ModeCollection();
+        public IrcClient()
+        {
+            client = new TcpClient();
+            worker = new Thread(WorkerCallback);
+            Modes = new ModeCollection();
 
-		    Encoding = Encoding.UTF8;
+            Encoding = Encoding.UTF8;
 
-		    //ConnectionTimeOutEvent += OnTimeout;
+            //ConnectionTimeOutEvent += OnTimeout;
 
-		    QueueInterval = 1000;
-	    }
+            QueueInterval = 1000;
+        }
 
-	    public IrcClient(IrcConfiguration config) : this()
-	    {
-		    Encoding = config.Encoding;
-		    HostName = config.Host;
-		    Ident = config.Ident;
-		    Nick = config.Nick;
-		    Password = config.Password;
-		    Port = config.Port;
-		    RealName = config.RealName;
+        public IrcClient(IrcConfiguration config)
+            : this()
+        {
+            Encoding = config.Encoding;
+            HostName = config.Host;
+            Ident = config.Ident;
+            Nick = config.Nick;
+            Password = config.Password;
+            Port = config.Port;
+            RealName = config.RealName;
 
-		    if (config.SslEnabled)
-		    {
-			    Options |= ConnectOptions.Secure;
-		    }
-	    }
+            if (config.SslEnabled)
+            {
+                Options |= ConnectOptions.Secure;
+            }
+        }
 
-	    #endregion
-		
+        #endregion
+
         #region Events
 
         public event EventHandler ConnectionEstablishedEvent;
         public event EventHandler<TimeoutEventArgs> ConnectionTimeOutEvent;
-		public event EventHandler<MessageReceivedEventArgs> NoticeReceivedEvent;
-		public event EventHandler<MessageReceivedEventArgs> PrivmsgReceivedEvent;
-		public event EventHandler<RfcNumericReceivedEventArgs> RfcNumericReceivedEvent;
-		public event EventHandler<JoinPartEventArgs> JoinEvent;
-	    public event EventHandler<ModeChangedEventArgs> ModeChangedEvent;
-	    public event EventHandler<JoinPartEventArgs> PartEvent;
-	    public event EventHandler<QuitEventArgs> QuitEvent;
+        public event EventHandler<MessageReceivedEventArgs> NoticeReceivedEvent;
+        public event EventHandler<MessageReceivedEventArgs> PrivmsgReceivedEvent;
+        public event EventHandler<RfcNumericReceivedEventArgs> RfcNumericReceivedEvent;
+        public event EventHandler<JoinPartEventArgs> JoinEvent;
+        public event EventHandler<ModeChangedEventArgs> ModeChangedEvent;
+        public event EventHandler<JoinPartEventArgs> PartEvent;
+        public event EventHandler<QuitEventArgs> QuitEvent;
 
-		#endregion
+        #endregion
 
         #region Properties
 
@@ -95,15 +96,15 @@ namespace Atlantis.Net.Irc
             get { return client != null && client.Connected; }
         }
 
-		/// <summary>
-		///		<para>Gets or sets a value indicating whether to enable ircv3 features with the IrcClient.</para>
-		///		<para>Defaults to false.</para>
-		/// </summary>
-		public bool EnableV3 { get; set; }
+        /// <summary>
+        ///		<para>Gets or sets a value indicating whether to enable ircv3 features with the IrcClient.</para>
+        ///		<para>Defaults to false.</para>
+        /// </summary>
+        public bool EnableV3 { get; set; }
 
         public Encoding Encoding { get; set; }
-		
-		public bool FillListsOnJoin { get; set; }
+
+        public bool FillListsOnJoin { get; set; }
 
         /// <summary>
         /// Gets or sets the host indicating the location of the IRC server.
@@ -131,10 +132,10 @@ namespace Atlantis.Net.Irc
             }
         }
 
-		/// <summary>
-		/// Gets a collection of modes set on the IrcClient.
-		/// </summary>
-		public ModeCollection Modes { get; private set; }
+        /// <summary>
+        /// Gets a collection of modes set on the IrcClient.
+        /// </summary>
+        public ModeCollection Modes { get; private set; }
 
         /// <summary>
         /// Gets or sets the nick that represents us on the IRC server.
@@ -165,7 +166,7 @@ namespace Atlantis.Net.Irc
         /// Gets or sets the realname of ourself on the IRC server.
         /// </summary>
         public String RealName { get; set; }
-        
+
         #endregion
 
         #region Methods
@@ -180,37 +181,37 @@ namespace Atlantis.Net.Irc
         {
             Channel c;
 
-	        lock (_channels)
-	        {
-		        if (_channels.TryGetValue(channelName, out c))
-		        {
-			        return c;
-		        }
+            lock (_channels)
+            {
+                if (_channels.TryGetValue(channelName, out c))
+                {
+                    return c;
+                }
 
-		        if (info.ChannelLength > 0 && channelName.Length > info.ChannelLength)
-		        { // Check if the channel length is greater than zero (whether we have it set) and whether the channel name specified conforms to that length.
-			        throw new RfcException(String.Format("The length of the channel {0} cannot exceed a length of {1} as provided by the IRC server.", channelName, info.ChannelLength));
-		        }
+                if (info.ChannelLength > 0 && channelName.Length > info.ChannelLength)
+                { // Check if the channel length is greater than zero (whether we have it set) and whether the channel name specified conforms to that length.
+                    throw new RfcException(String.Format("The length of the channel {0} cannot exceed a length of {1} as provided by the IRC server.", channelName, info.ChannelLength));
+                }
 
-		        c = new Channel(this, channelName);
-		        _channels.Add(c.Name, c);
-	        }
+                c = new Channel(this, channelName);
+                _channels.Add(c.Name, c);
+            }
 
             return c;
         }
 
-	    public void RemoveChannel(String channelName)
-	    {
-		    lock (_channels)
-		    {
-			    if (_channels.ContainsKey(channelName))
-			    {
-				    _channels.Remove(channelName);
-			    }
-		    }
-	    }
+        public void RemoveChannel(String channelName)
+        {
+            lock (_channels)
+            {
+                if (_channels.ContainsKey(channelName))
+                {
+                    _channels.Remove(channelName);
+                }
+            }
+        }
 
-	    protected virtual void SetDefaultValues()
+        protected virtual void SetDefaultValues()
         {
             if (String.IsNullOrEmpty(Ident))
             {
@@ -222,17 +223,17 @@ namespace Atlantis.Net.Irc
                 RealName = Nick;
             }
 
-            if(Port == 0)
+            if (Port == 0)
             {
                 Port = 6667;
             }
         }
 
-	    public async void SetNick(String newNick)
-	    {
-		    await Send("NICK {0}", newNick);
-		    _currentNick = newNick;
-	    }
+        public async void SetNick(String newNick)
+        {
+            await Send("NICK {0}", newNick);
+            _currentNick = newNick;
+        }
 
         /// <summary>
         /// Sends the specified formatted message to the IRC server without waiting for the message queue.
@@ -255,10 +256,10 @@ namespace Atlantis.Net.Irc
                 message.AppendFormat(format, args).Append('\n');
 
                 byte[] buf = Encoding.GetBytes(message.ToString());
-                
+
                 await stream.WriteAsync(buf, 0, buf.Length);
                 await stream.FlushAsync();
-                
+
                 return true;
             }
             finally
@@ -298,14 +299,14 @@ namespace Atlantis.Net.Irc
             if (Connected)
             {
                 requestShutdown = true;
-	            if (String.IsNullOrEmpty(reason))
-	            {
-		            await Send("QUIT");
-	            }
-	            else
-	            {
-		            await Send("QUIT :{0}", reason);
-	            }
+                if (String.IsNullOrEmpty(reason))
+                {
+                    await Send("QUIT");
+                }
+                else
+                {
+                    await Send("QUIT :{0}", reason);
+                }
             }
         }
 
@@ -314,12 +315,13 @@ namespace Atlantis.Net.Irc
 
     #region External type: RfcException
 
-	/// <summary>
-	/// 
-	/// </summary>
+    /// <summary>
+    /// 
+    /// </summary>
     public class RfcException : Exception
     {
-        public RfcException(String message) : base(message)
+        public RfcException(String message)
+            : base(message)
         {
         }
     }
