@@ -31,7 +31,6 @@ namespace Atlantis.Net.Irc
         private readonly Thread worker;
 
         private NetworkStream stream;
-        private StreamWriter writer;
         private StreamReader reader;
         private bool requestShutdown;
         private string _currentNick;
