@@ -11,6 +11,7 @@ namespace Atlantis.Net.Irc
     using System.Diagnostics;
     using System.IO;
     using System.Linq;
+    using System.Runtime.Remoting.Channels;
     using System.Text;
     using System.Text.RegularExpressions;
     using Atlantis.Linq;
@@ -30,7 +31,9 @@ namespace Atlantis.Net.Irc
 
         #region Properties
 
-        public bool StrictNames { get; set; }
+        public char CommandPrefix { get; set; }
+
+        public bool EnableCommandParsing { get; set; }
 
         public String PrefixModes
         {
@@ -41,6 +44,8 @@ namespace Atlantis.Net.Irc
         {
             get { return info.Prefixes; }
         }
+
+        public bool StrictNames { get; set; }
 
         #endregion
 
@@ -237,7 +242,10 @@ namespace Atlantis.Net.Irc
         }
 
         private void OnPreModeParse(String source, String target, String modestr, String[] parameters)
-        { // TODO: refactor method name since this isn't going to be a hook-point for overrides
+        {
+            // TODO: refactor method name since this isn't going to be a hook-point for overrides
+            // TODO: decipher what past-me meant by the above statement.
+            // TODO: leave these funny comments for posterity.
             String sourceNick = source.GetNickFromSource();
 
             if (target.StartsWith("#"))
@@ -334,11 +342,40 @@ namespace Atlantis.Net.Irc
         protected virtual void OnPrivmsg(String source, String target, String message)
         {
             PrivmsgReceivedEvent.Raise(this, new MessageReceivedEventArgs(source, target, message));
+
+            // TODO: Support non-channel commands (ie: PM commands)
+            // TODO: Support non-standard channels (ie: use CHANTYPES from 005).
+            if (EnableCommandParsing && target[0].Equals('#') && message.Length > 1 && message[0] == CommandPrefix)
+            {
+                string[] toks       = message.Split(' ');
+                string command      = toks[0].Substring(1);
+                string[] parameters = toks.Skip(1).ToArray();
+
+                char access = '\0';
+                var c = GetChannel(target);
+                if (c != null)
+                {
+                    string nick = source.GetNickFromSource();
+                    PrefixList l;
+                    if (c.Users.TryGetValue(nick, out l))
+                    {
+                        access = l.HighestPrefix;
+                    }
+                }
+
+                CanExecuteCommandEventArgs args = new CanExecuteCommandEventArgs(command, source, access, parameters);
+                CanExecuteCommandEvent.Raise(this, args);
+
+                if (args.CanExecute)
+                {
+                    CommandExecutedEvent.Raise(this, new CommandExecuteEventArgs(command, source, access, parameters));
+                }
+            }
         }
 
         protected virtual void OnQuit(String source, String message)
         {
-            String sourceNick = source.GetNickFromSource();
+            string sourceNick = source.GetNickFromSource();
 
             lock (_channels)
             {

@@ -75,7 +75,10 @@ namespace Atlantis.Net.Irc
         #region Events
 
         public event EventHandler ConnectionEstablishedEvent;
-        public event EventHandler<TimeoutEventArgs> ConnectionTimeOutEvent;
+        // TODO: Figure out whether we want to handle connect timeouts.
+        [Obsolete] public event EventHandler<TimeoutEventArgs> ConnectionTimeOutEvent;
+        public event EventHandler<CanExecuteCommandEventArgs> CanExecuteCommandEvent;
+        public event EventHandler<CommandExecuteEventArgs> CommandExecutedEvent;
         public event EventHandler<MessageReceivedEventArgs> NoticeReceivedEvent;
         public event EventHandler<MessageReceivedEventArgs> PrivmsgReceivedEvent;
         public event EventHandler<RfcNumericReceivedEventArgs> RfcNumericReceivedEvent;

@@ -31,9 +31,7 @@ namespace IrcClientDaemon
 	                                             {
 		                                             Console.WriteLine("Connected!");
 
-		                                             //((IrcClient)s).Send("JOIN #genesis2001");
-		                                             await ((IrcClient)s).Send("JOIN #test");
-		                                             //((IrcClient)s).Send("PRIVMSG #UnifiedTech :Hello World!");
+		                                             await ((IrcClient)s).Send("JOIN #UnifiedTech");
 	                                             };
 
 	        client.PrivmsgReceivedEvent += async (s, e) =>
@@ -73,6 +71,22 @@ namespace IrcClientDaemon
                                                    }
                                                }
 	                                       };
+
+            client.EnableCommandParsing = true;
+            client.CommandPrefix = '!';
+
+            client.CanExecuteCommandEvent += (s, e) =>
+                                             {
+                                                 e.CanExecute = true;
+
+                                                 Console.WriteLine("[REQ] Command: {0} - Source: {1} ({3}) - Parameters: {2}", e.Command, e.Source, string.Join(" ", e.Parameters), e.Access);
+                                             };
+
+            // ReSharper disable once ConvertToLambdaExpression
+            client.CommandExecutedEvent += (s, e) =>
+                                           {
+                                               Console.WriteLine("[EXEC] Command: {0} - Source: {1} ({3}) - Parameters: {2}", e.Command, e.Source, string.Join(" ", e.Parameters), e.Access);
+                                           };
 
 			/*
 	        client.JoinEvent += (s, e) => Console.WriteLine("[JOIN] {0} joined channel {1}", e.Source, e.Channel);
