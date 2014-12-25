@@ -2,9 +2,75 @@
 <html lang="en">
 	<head>
 		<title>Hello World</title>
+		
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.1/css/bootstrap.min.css" />
+		<link rel="stylesheet" href="style.css" />
 	</head>
 	
-	<body>
-		<p>Hello world from gh-pages!</p>
+	<body data-spy="scroll" data-target="#mynavbar">
+		<div class="container">
+			<div class="navbar navbar-inverse navbar-default">
+				<div class="container-fluid">
+					<div class="navbar-header">
+						<button type="button" data-toggle="collapse" data-target="#mynavbar" class="navbar-toggle collapsed">
+							<span class="sr-only">Toggle navigation</span>
+							<span class="icon-bar"></span>
+							<span class="icon-bar"></span>
+							<span class="icon-bar"></span>
+						</button>
+						
+						<a href="#" class="navbar-brand">Atlantis Library</a>
+					</div>
+					
+					<div class="collapse navbar-collapse" id="mynavbar">
+						<ul class="nav navbar-nav navbar-right" role="tablist">
+							<li><a href="#welcome">Welcome</a></li>
+							<li><a href="#contributing">Contributing</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+			
+			<div class="jumbotron">
+				<h1>Atlantis Library</h1>
+				<p>The Atlantis library is a composition of code reused in multiple personal projects.</p>
+				<hr />
+				<p>
+					<a href="#" class="btn btn-primary"><i class="glyphicon glyphicon-download"></i> Download 4.0</a>
+					<a href="#" class="btn btn-default"><i class="glyphicon glyphicon-download"></i> Download 4.1-alpha</a>
+				</p>
+			</div>
+			
+			<div class="row">
+				<div class="col-md-12">
+					<h2><a name="welcome" class="sr-only"></a>Welcome</h2>
+				
+					<p>Welcome to the Atlantis .NET Library. Here, you'll find a collection of code I have written (and re-written)
+					throughout <em>my</em> years as a programmer. It serves it's purpose; and I'm always open to new ideas for the whole
+					library, or simply subsets of it. Presently, the most complete portion of the library is the IRC framework.</p>
+					
+					<p></p>
+				</div>
+			</div>
+			
+			<div class="row">
+				<div class="col-md-12">
+					<h2><a class="sr-only" name="contributing"></a>Contributing</h2>
+					
+					<p>Presently, this section of the document is unavailable. For now, you may fork the project and submit pull requests.</p>
+				</div>
+			</div>
+			
+			<div class="row">
+				<div class="col-md-12 copyright">
+					<hr />
+					
+					<p class="text-muted">Site content &copy; Zack Loveless.</p>
+				</div>
+			</div>
+		</div>
+		
+		<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+		<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.1/js/bootstrap.min.js"></script>
 	</body>
 </html>
