@@ -19,5 +19,4 @@ using System.Reflection;
 [assembly: AssemblyCopyright("Copyright \u00a9 2014 Zack Loveless. All Rights Reserved.")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
-[assembly: CLSCompliant(true)]
 [assembly: AssemblyVersion("4.1.*")]

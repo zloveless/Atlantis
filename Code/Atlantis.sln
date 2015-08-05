@@ -14,6 +14,15 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IrcClientDaemon", "IrcClientDaemon\IrcClientDaemon.csproj", "{2A99FC4D-CD01-4DEE-8613-170FA5389A14}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atlantis.Windows", "Atlantis.Windows\Atlantis.Windows.csproj", "{EB947BBB-A0F6-4D4F-8AF3-E57C0AA3A53F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atlantis.Unity", "Atlantis.Unity\Atlantis.Unity.csproj", "{DC78D97F-0DEB-4B88-85FE-557626F73331}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{603E3A37-E6DF-4C82-ACBB-0B56DD42B82A}"
+	ProjectSection(SolutionItems) = preProject
+		.nuget\packages.config = .nuget\packages.config
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -32,6 +41,14 @@ Global
 		{2A99FC4D-CD01-4DEE-8613-170FA5389A14}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2A99FC4D-CD01-4DEE-8613-170FA5389A14}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2A99FC4D-CD01-4DEE-8613-170FA5389A14}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EB947BBB-A0F6-4D4F-8AF3-E57C0AA3A53F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EB947BBB-A0F6-4D4F-8AF3-E57C0AA3A53F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EB947BBB-A0F6-4D4F-8AF3-E57C0AA3A53F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EB947BBB-A0F6-4D4F-8AF3-E57C0AA3A53F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DC78D97F-0DEB-4B88-85FE-557626F73331}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DC78D97F-0DEB-4B88-85FE-557626F73331}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DC78D97F-0DEB-4B88-85FE-557626F73331}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DC78D97F-0DEB-4B88-85FE-557626F73331}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
