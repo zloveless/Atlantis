@@ -12,6 +12,23 @@ namespace Atlantis.Linq
 	{
 		private static readonly DateTime ORIGIN = new DateTime(1970, 1, 1, 0, 0, 0);
 
+        /// <summary>
+        /// Converts the specified <see cref="System.Int32" /> to a <see cref="System.DateTime" /> instance.
+        /// </summary>
+        /// <param name="source"></param>
+        /// <returns></returns>
+	    public static DateTime ToDateTime(this int source)
+	    {
+	        if (source < 0) throw new ArgumentException("The value cannot be less than zero.", "source");
+
+	        return ORIGIN.AddSeconds(Convert.ToDouble(source));
+	    }
+
+        /// <summary>
+        /// Converts the specified <see cref="System.Double" /> to a <see cref="System.DateTime" /> instance.
+        /// </summary>
+        /// <param name="source"></param>
+        /// <returns></returns>
 		public static DateTime ToDateTime(this double source)
 		{
 			if (source < 0) throw new ArgumentException("The value cannot be less than zero.", "source");
@@ -19,6 +36,11 @@ namespace Atlantis.Linq
 			return ORIGIN.AddSeconds(source);
 		}
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="source"></param>
+        /// <returns></returns>
 		public static double ToTimestamp(this DateTime source)
 		{
 			return Math.Floor((source - ORIGIN).TotalSeconds);
