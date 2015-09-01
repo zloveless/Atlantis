@@ -54,7 +54,7 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Atlantis.Net.Irc\Atlantis.Net.Irc.csproj">
+    <ProjectReference Include="..\..\Code\Atlantis.Net.Irc\Atlantis.Net.Irc.csproj">
       <Project>{07410E3A-D2CF-4A81-BA52-864C8D206664}</Project>
       <Name>Atlantis.Net.Irc</Name>
     </ProjectReference>

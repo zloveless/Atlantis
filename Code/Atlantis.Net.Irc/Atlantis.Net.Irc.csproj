@@ -40,13 +40,24 @@
     <Compile Include="..\GlobalAssemblyInfo.cs">
       <Link>GlobalAssemblyInfo.cs</Link>
     </Compile>
-    <Compile Include="CanExecuteCommandEventArgs.cs" />
+    <Compile Include="EventArgs\CancelableEventArgs.cs" />
+    <Compile Include="EventArgs\CanExecuteCommandEventArgs.cs" />
     <Compile Include="Channel.cs" />
-    <Compile Include="CommandExecuteEventArgs.cs" />
+    <Compile Include="EventArgs\CommandExecuteEventArgs.cs" />
+    <Compile Include="EventArgs\HandledEventArgs.cs" />
+    <Compile Include="EventArgs\MessageReceivedEventArgs.cs" />
+    <Compile Include="EventArgs\ModeChangedEventArgs.cs" />
+    <Compile Include="EventArgs\NickChangeEventArgs.cs" />
+    <Compile Include="EventArgs\ProtocolMessageEventArgs.cs" />
+    <Compile Include="EventArgs\QuitEventArgs.cs" />
+    <Compile Include="EventArgs\RawMessageEventArgs.cs" />
+    <Compile Include="EventArgs\RfcNumericReceivedEventArgs.cs" />
+    <Compile Include="EventArgs\TimeoutEventArgs.cs" />
     <Compile Include="GenericMode.cs" />
-    <Compile Include="IrcClientEventArgs.cs" />
+    <Compile Include="EventArgs\JoinPartEventArgs.cs" />
+    <Compile Include="IrcConnection.cs" />
     <Compile Include="IrcConstants.cs" />
-    <Compile Include="IRfcCommand.cs" />
+    <Compile Include="CommandHandlers\IRfcCommand.cs" />
     <Compile Include="Linq\IrcHelpers.cs" />
     <Compile Include="ListModeCollection.cs" />
     <Compile Include="ModeCollection.cs" />
