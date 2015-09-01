@@ -16,7 +16,7 @@ using System.Reflection;
 
 [assembly: AssemblyCompany("Zack Loveless")]
 [assembly: AssemblyProduct("Atlantis Framework")]
-[assembly: AssemblyCopyright("Copyright \u00a9 2014 Zack Loveless. All Rights Reserved.")]
+[assembly: AssemblyCopyright("Copyright \u00a9 2015 Zack Loveless. All Rights Reserved.")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
-[assembly: AssemblyVersion("4.1.*")]
+[assembly: AssemblyVersion("4.2.*")]
