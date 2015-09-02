@@ -4,11 +4,11 @@
 //  </copyright>
 // -----------------------------------------------------------------------------
 
-namespace Atlantis.Linq
+namespace Atlantis.Extensions
 {
-	using System;
+    using System;
 
-	public static partial class Extensions
+    public static partial class Extensions
 	{
 		private static readonly DateTime ORIGIN = new DateTime(1970, 1, 1, 0, 0, 0);
 

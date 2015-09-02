@@ -4,10 +4,10 @@
 //  </copyright>
 // -----------------------------------------------------------------------------
 
-namespace Atlantis.Linq
+namespace Atlantis.Extensions
 {
-	using System.Collections.Generic;
-	using System.Text.RegularExpressions;
+    using System.Collections.Generic;
+    using System.Text.RegularExpressions;
 
     /// <summary>
     ///     <para>Contains methods used to match strings against a given regular expression.</para>

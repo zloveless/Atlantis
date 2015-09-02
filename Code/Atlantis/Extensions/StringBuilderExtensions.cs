@@ -4,12 +4,12 @@
 //  </copyright>
 // -----------------------------------------------------------------------------
 
-namespace Atlantis.Linq
+namespace Atlantis.Extensions
 {
-	using System;
-	using System.Text;
+    using System;
+    using System.Text;
 
-	public static partial class Extensions
+    public static partial class Extensions
 	{
 		public static StringBuilder AppendFormatLine(this StringBuilder source, string format, params object[] args)
 		{

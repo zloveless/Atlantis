@@ -3,11 +3,11 @@
 //      Copyright (c) Zack Loveless.  All rights reserved.
 //  </copyright>
 // -----------------------------------------------------------------------------
-namespace Atlantis.Linq
+namespace Atlantis.Extensions
 {
-	using System;
+    using System;
 
-	public static partial class Extensions
+    public static partial class Extensions
 	{
 		/// <summary>
 		/// 

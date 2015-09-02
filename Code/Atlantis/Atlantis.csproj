@@ -48,12 +48,12 @@
     <Compile Include="IO\LogBaseClass.cs" />
     <Compile Include="IO\LogThreshold.cs" />
     <Compile Include="IO\MultiLog.cs" />
-    <Compile Include="Linq\EnumExtensions.cs" />
-    <Compile Include="Linq\EventExtensions.cs" />
-    <Compile Include="Linq\NumericExtensions.cs" />
-    <Compile Include="Linq\StringBuilderExtensions.cs" />
-    <Compile Include="Linq\RegexExtensions.cs" />
-    <Compile Include="Linq\StringExtensions.cs" />
+    <Compile Include="Extensions\EnumExtensions.cs" />
+    <Compile Include="Extensions\EventExtensions.cs" />
+    <Compile Include="Extensions\NumericExtensions.cs" />
+    <Compile Include="Extensions\StringBuilderExtensions.cs" />
+    <Compile Include="Extensions\RegexExtensions.cs" />
+    <Compile Include="Extensions\StringExtensions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Web\HttpHelper.cs" />
   </ItemGroup>

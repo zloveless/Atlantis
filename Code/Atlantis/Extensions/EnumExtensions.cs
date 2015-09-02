@@ -4,13 +4,13 @@
 //  </copyright>
 // -----------------------------------------------------------------------------
 
-namespace Atlantis.Linq
+namespace Atlantis.Extensions
 {
-	using System;
-	using System.ComponentModel;
-	using System.Linq;
+    using System;
+    using System.ComponentModel;
+    using System.Linq;
 
-	public static partial class Extensions
+    public static partial class Extensions
 	{
 		public static String GetDescription(this Enum source)
 		{

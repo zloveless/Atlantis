@@ -36,6 +36,18 @@ namespace Atlantis.MathLib.Tests
 
             Assert.That(actual, Is.EqualTo(expected));
         }
+
+        [Test]
+        public void Dot_ShouldReturnTheDotProduct()
+        {
+            var a = Vector.Create(2, new[] { 4.0, 3.0 });
+            var b = Vector.Create(2, new[] { 2.0, 5.0 });
+
+            double result = a * b;
+            const double expected = 23.0;
+
+            Assert.That(result, Is.EqualTo(expected));
+        }
     }
 
     // ReSharper enable InconsistentNaming

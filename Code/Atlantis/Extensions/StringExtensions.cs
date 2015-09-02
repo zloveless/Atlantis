@@ -4,13 +4,13 @@
 //  </copyright>
 // -----------------------------------------------------------------------------
 
-namespace Atlantis.Linq
+namespace Atlantis.Extensions
 {
-	using System;
-	using System.Collections.Generic;
-	using System.Linq;
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
 
-	public static partial class Extensions
+    public static partial class Extensions
 	{
 		public static bool EqualsIgnoreCase(this string source, string value)
 		{
