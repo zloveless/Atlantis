@@ -8,9 +8,10 @@ namespace Atlantis.Net.Irc.Linq
 {
 	using System;
 	using System.Text.RegularExpressions;
-	using Atlantis.Linq;
 
-	public static class IrcHelpers
+	using Atlantis.Extensions;
+
+    public static class IrcHelpers
 	{
 		public static String GetNickFromSource(this String source)
 		{

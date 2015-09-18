@@ -11,7 +11,7 @@ namespace Atlantis.Net.Irc
 	using System;
 	using System.Linq;
 
-	public class PrefixList : IComparable<PrefixList>, IComparable<char>
+    public struct PrefixList : IComparable<PrefixList>, IComparable<char>
 	{
 		private readonly IrcClient _client;
 		private readonly char[] prefixes;
@@ -19,16 +19,16 @@ namespace Atlantis.Net.Irc
 		public PrefixList(IrcClient client)
 		{
 			_client = client;
-			prefixes = new char[client.Prefixes.Length];
+            prefixes = new char[client.ServerInfo.Prefixes.Length];
 		}
 
 		public PrefixList(IrcClient client, char[] prefixList) : this(client)
 		{
 			prefixes = prefixList;
 
-			if (prefixes.Length != client.Prefixes.Length)
+            if (prefixes.Length != client.ServerInfo.Prefixes.Length)
 			{
-				Array.Resize(ref prefixes, client.Prefixes.Length);
+                Array.Resize(ref prefixes, client.ServerInfo.Prefixes.Length);
 				Resort();
 			}
 		}
@@ -82,19 +82,19 @@ namespace Atlantis.Net.Irc
 	        return false;
 	    }
 
-	    protected void Resort()
+        private void Resort()
 	    {
 	        Array.Sort(prefixes, Sort);
 	    }
 
-	    protected int Sort(char a, char b)
+        private int Sort(char a, char b)
 	    {
 	        if (a == 0 && b == 0) return 0;
 	        if (a == 0) return 1;
 	        if (b == 0) return -1;
 
-	        var aIndex = _client.Prefixes.IndexOf(a);
-	        var bIndex = _client.Prefixes.IndexOf(b);
+	        var aIndex = _client.ServerInfo.Prefixes.IndexOf(a);
+            var bIndex = _client.ServerInfo.Prefixes.IndexOf(b);
 
 	        if (aIndex < 0 || bIndex < 0)
 	        {

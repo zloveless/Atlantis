@@ -40,9 +40,17 @@
     <Compile Include="..\GlobalAssemblyInfo.cs">
       <Link>GlobalAssemblyInfo.cs</Link>
     </Compile>
+    <Compile Include="Commands\RfcCommand.cs" />
+    <Compile Include="IrcServer.cs" />
+    <Compile Include="Parsers\IrcClientModeParser.cs" />
+    <Compile Include="Parsers\IrcClientSourceParser.cs" />
+    <Compile Include="Parsers\IModesStringParser.cs" />
+    <Compile Include="Parsers\INamesReplyParser.cs" />
+    <Compile Include="IrcClient.cs" />
+    <Compile Include="IrcSource.cs" />
+    <Compile Include="Parsers\ISourceParser.cs" />
     <Compile Include="EventArgs\CancelableEventArgs.cs" />
     <Compile Include="EventArgs\CanExecuteCommandEventArgs.cs" />
-    <Compile Include="Channel.cs" />
     <Compile Include="EventArgs\CommandExecuteEventArgs.cs" />
     <Compile Include="EventArgs\HandledEventArgs.cs" />
     <Compile Include="EventArgs\MessageReceivedEventArgs.cs" />
@@ -56,22 +64,12 @@
     <Compile Include="GenericMode.cs" />
     <Compile Include="EventArgs\JoinPartEventArgs.cs" />
     <Compile Include="IrcConnection.cs" />
-    <Compile Include="IrcConstants.cs" />
-    <Compile Include="CommandHandlers\IRfcCommand.cs" />
+    <Compile Include="Commands\IRfcCommand.cs" />
     <Compile Include="Linq\IrcHelpers.cs" />
-    <Compile Include="ListModeCollection.cs" />
-    <Compile Include="ModeCollection.cs" />
     <Compile Include="ModeType.cs" />
     <Compile Include="PrefixComparer.cs" />
     <Compile Include="PrefixListComparer.cs" />
     <Compile Include="Properties\ReSharper.Annotations.cs" />
-    <Compile Include="ConnectOptions.cs" />
-    <Compile Include="IrcClient.cs" />
-    <Compile Include="IrcClient_Handlers.cs" />
-    <Compile Include="IrcConfiguration.cs" />
-    <Compile Include="IrcEncoding.cs" />
-    <Compile Include="IrcHeaders.cs" />
-    <Compile Include="ListMode.cs" />
     <Compile Include="PrefixList.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ServerInfo.cs" />

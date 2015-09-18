@@ -1,19 +1,13 @@
 ﻿// -----------------------------------------------------------------------------
-//  <copyright file="ConnectOptions.cs" company="Zack Loveless">
+//  <copyright file="INamesReplyParser.cs" company="Zack Loveless">
 //      Copyright (c) Zack Loveless.  All rights reserved.
-//      
-//      LICENSE TBA
 //  </copyright>
 // -----------------------------------------------------------------------------
 
-namespace Atlantis.Net.Irc
+namespace Atlantis.Net.Irc.Parsers
 {
-	using System;
+    public interface INamesReplyParser
+    {
 
-	[Flags]
-	public enum ConnectOptions
-	{
-		Default = 0,
-		Secure = 1,
-	}
+    }
 }

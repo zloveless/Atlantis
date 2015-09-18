@@ -4,22 +4,15 @@
 //  </copyright>
 // -----------------------------------------------------------------------------
 
-namespace Atlantis.Net.Irc
+namespace Atlantis.Net.Irc.Commands
 {
-	using System;
-
-	public interface IRfcCommand
+    public interface IRfcCommand
 	{
-		/// <summary>
-		/// Returns the name of the command being executed or a generic identifier in the case of numerics handling.
-		/// </summary>
-		string Name { get; }
-
 		/// <summary>
 		/// Handles this command using the specified parameters.
 		/// </summary>
 		/// <param name="source"></param>
 		/// <param name="parameters"></param>
-		void Handle(string source, string[] parameters);
+		void Execute(string source, string[] parameters);
 	}
 }

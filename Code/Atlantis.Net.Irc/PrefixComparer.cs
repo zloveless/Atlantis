@@ -6,7 +6,6 @@
 
 namespace Atlantis.Net.Irc
 {
-    using System;
     using System.Collections.Generic;
 
     public class PrefixComparer : IComparer<char>

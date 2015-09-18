@@ -8,7 +8,7 @@ namespace Atlantis.Net.Irc
 {
 	using System;
 
-	public class GenericMode
+    public class GenericMode
 	{
 		public char Mode { get; set; }
 
@@ -21,5 +21,22 @@ namespace Atlantis.Net.Irc
 		public String Target { get; set; }
 
 		public ModeType Type { get; set; }
+
+	    #region Factory method
+
+	    public static GenericMode Create(char mode, string parameter, bool set, string source, string target, ModeType type)
+	    {
+	        return new GenericMode
+	                   {
+	                       Mode = mode,
+	                       IsSet = set,
+	                       Parameter = parameter,
+	                       Setter = source,
+	                       Target = target,
+	                       Type = type
+	                   };
+	    }
+
+	    #endregion
 	}
 }
