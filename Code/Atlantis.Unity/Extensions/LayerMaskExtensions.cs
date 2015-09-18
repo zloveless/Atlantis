@@ -4,14 +4,14 @@
 //  </copyright>
 // -----------------------------------------------------------------------------
 
-namespace Atlantis.Unity
+namespace Atlantis.Unity.Extensions
 {
     using UnityEngine;
 
     /// <summary>
     /// 
     /// </summary>
-    public static class Extensions
+    public static class LayerMaskExtensions
     {
         /// <summary>
         /// 
