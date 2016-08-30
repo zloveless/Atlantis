@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.31101.0
+# Visual Studio 14
+VisualStudioVersion = 14.0.24720.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atlantis", "Atlantis\Atlantis.csproj", "{3464FCF7-A68E-40CC-A354-32B80E698890}"
 EndProject
@@ -21,11 +21,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{603E3A
 		.nuget\packages.config = .nuget\packages.config
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atlantis.MathLib", "Atlantis.MathLib\Atlantis.MathLib.csproj", "{07A16270-8EC5-4BDC-B203-0E1240304C37}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{B5B8E96E-22F4-450D-9000-52C83783B442}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atlantis.MathLib.Tests", "..\Tests\Atlantis.MathLib.Tests\Atlantis.MathLib.Tests.csproj", "{8FC9D009-2976-4918-9333-8943823FFFB9}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IrcClientDaemon", "..\Tests\IrcClientDaemon\IrcClientDaemon.csproj", "{2A99FC4D-CD01-4DEE-8613-170FA5389A14}"
 EndProject
@@ -51,14 +47,6 @@ Global
 		{DC78D97F-0DEB-4B88-85FE-557626F73331}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DC78D97F-0DEB-4B88-85FE-557626F73331}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DC78D97F-0DEB-4B88-85FE-557626F73331}.Release|Any CPU.Build.0 = Release|Any CPU
-		{07A16270-8EC5-4BDC-B203-0E1240304C37}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{07A16270-8EC5-4BDC-B203-0E1240304C37}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{07A16270-8EC5-4BDC-B203-0E1240304C37}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{07A16270-8EC5-4BDC-B203-0E1240304C37}.Release|Any CPU.Build.0 = Release|Any CPU
-		{8FC9D009-2976-4918-9333-8943823FFFB9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{8FC9D009-2976-4918-9333-8943823FFFB9}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{8FC9D009-2976-4918-9333-8943823FFFB9}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{8FC9D009-2976-4918-9333-8943823FFFB9}.Release|Any CPU.Build.0 = Release|Any CPU
 		{2A99FC4D-CD01-4DEE-8613-170FA5389A14}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{2A99FC4D-CD01-4DEE-8613-170FA5389A14}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2A99FC4D-CD01-4DEE-8613-170FA5389A14}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -68,7 +56,6 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{8FC9D009-2976-4918-9333-8943823FFFB9} = {B5B8E96E-22F4-450D-9000-52C83783B442}
 		{2A99FC4D-CD01-4DEE-8613-170FA5389A14} = {B5B8E96E-22F4-450D-9000-52C83783B442}
 	EndGlobalSection
 EndGlobal
