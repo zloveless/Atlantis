@@ -25,6 +25,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{B5B8E96E
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IrcClientDaemon", "..\Tests\IrcClientDaemon\IrcClientDaemon.csproj", "{2A99FC4D-CD01-4DEE-8613-170FA5389A14}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atlantis.Net.GameServer.Renegade", "Atlantis.Net.GameServer.Renegade\Atlantis.Net.GameServer.Renegade.csproj", "{2DC15490-952E-413A-AFBA-8B3B9CBBD872}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atlantis.Net.GameServer", "Atlantis.Net.GameServer\Atlantis.Net.GameServer.csproj", "{091538EB-57D9-44DA-99C7-69793A86676A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -51,6 +55,14 @@ Global
 		{2A99FC4D-CD01-4DEE-8613-170FA5389A14}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2A99FC4D-CD01-4DEE-8613-170FA5389A14}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2A99FC4D-CD01-4DEE-8613-170FA5389A14}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2DC15490-952E-413A-AFBA-8B3B9CBBD872}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2DC15490-952E-413A-AFBA-8B3B9CBBD872}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2DC15490-952E-413A-AFBA-8B3B9CBBD872}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2DC15490-952E-413A-AFBA-8B3B9CBBD872}.Release|Any CPU.Build.0 = Release|Any CPU
+		{091538EB-57D9-44DA-99C7-69793A86676A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{091538EB-57D9-44DA-99C7-69793A86676A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{091538EB-57D9-44DA-99C7-69793A86676A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{091538EB-57D9-44DA-99C7-69793A86676A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
