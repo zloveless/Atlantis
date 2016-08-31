@@ -14,7 +14,7 @@ namespace Atlantis.Net.GameServer
     /// <summary>
     ///     <para>Provides access to a Renegade server's remote administration console.</para>
     /// </summary>
-    public class RenegadeCommunicator : IServerCommunicator
+    public class RenegadeCommunicator : ServerCommunicator
     {
         private string _szHost;
         private int _iPort;
@@ -25,7 +25,7 @@ namespace Atlantis.Net.GameServer
         private DateTime _dtLastPassword = DateTime.MinValue;
         private byte[] _abPing; // password message. We send this every _tsPasswordInterval so cache it
 
-        public RenegadeCommunicator(string serverAddress, string remoteAdminPass, int remoteAdminPort, TimeSpan? passwordInterval = null)
+        public RenegadeCommunicator(string serverAddress, int remoteAdminPort, string remoteAdminPass, TimeSpan? passwordInterval = null) : base(serverAddress, remoteAdminPort, remoteAdminPass)
         {
             if (serverAddress == null
                 || remoteAdminPort > ushort.MaxValue
@@ -50,23 +50,14 @@ namespace Atlantis.Net.GameServer
             _udpClient = new UdpClient(_szHost, _iPort);
         }
 
-        public void Write(string format, params object[] args)
+        public override void Write(string format, params object[] args)
         {
             Send(format, args);
         }
 
         #region Implementation of IDisposable
 
-        /// <summary>
-        ///     Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
-        /// </summary>
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected void Dispose(bool disposing)
+        protected override void Dispose(bool disposing)
         {
             if (disposing)
             {

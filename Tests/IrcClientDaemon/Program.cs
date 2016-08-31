@@ -3,7 +3,7 @@
 //      Copyright (c) Zack Loveless.  All rights reserved.
 //  </copyright>
 // -----------------------------------------------------------------------------
-
+/*
 namespace IrcClientDaemon
 {
     using System;
@@ -95,7 +95,7 @@ namespace IrcClientDaemon
 		        (s, e) => Console.WriteLine("[NOTICE] Received a notice from {0} ({2}) with: {1}",
 			        e.Source,
 			        e.Message,
-			        e.Target == client.Source || e.Target == null ? "to me" : e.Target); */
+			        e.Target == client.Source || e.Target == null ? "to me" : e.Target); *//*
 			
             // ReSharper disable once CSharpWarnings::CS4014
             client.Start();
@@ -108,3 +108,4 @@ namespace IrcClientDaemon
         }
     }
 }
+*/

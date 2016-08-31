@@ -43,11 +43,10 @@
     <Compile Include="..\GlobalAssemblyInfo.cs">
       <Link>GlobalAssemblyInfo.cs</Link>
     </Compile>
-    <Compile Include="IServerCommunicator.cs" />
+    <Compile Include="IServerParser.cs" />
+    <Compile Include="ServerCommunicator.cs" />
     <Compile Include="IServerConnection.cs" />
-    <Compile Include="LogMessageReceivedEventArgs.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ServerLogParser.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Atlantis.Net.GameServer.nuspec" />

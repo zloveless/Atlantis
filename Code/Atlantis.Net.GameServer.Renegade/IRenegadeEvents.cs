@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-//  <copyright file="IRenegadeParser.cs" author="Zack Loveless">
+//  <copyright file="IRenegadeEvents.cs" author="Zack Loveless">
 //      Copyright (c) Zack Loveless All rights reserved.
 //  </copyright>
 // -----------------------------------------------------------------------------
@@ -8,11 +8,12 @@ namespace Atlantis.Net.GameServer
 {
     using System;
 
-    public interface IRenegadeParser
+    public interface IRenegadeEvents
     {
         event EventHandler<SsgmLogEventArgs> SsgmLog;
         event EventHandler<RenLogEventArgs> RenegadeLog;
-        event EventHandler<RenLogEventArgs> GameLog;
+        event EventHandler<GameLogEventArgs> GameLog;
         event EventHandler<RenLogEventArgs> ConsoleLog;
+        event EventHandler<RenLogEventArgs> InvalidLog;
     }
 }
