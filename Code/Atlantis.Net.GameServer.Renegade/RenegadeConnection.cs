@@ -15,15 +15,18 @@ namespace Atlantis.Net.GameServer
 
     public class RenegadeConnection : IServerConnection
     {
+        #region Fields
+
         private CancellationTokenSource _tokenSource = new CancellationTokenSource();
 
         private TcpClient _client;
-        //private RenRem _rencomm; // TODO: Replace with a generic implementation and remove this hard dependency
         private Thread _thread;
 
         private string _serverAddress;
         private int _logPort;
 
+        #endregion
+        
         public RenegadeConnection(string serverAddress, int logPort, string remoteAdminPass = "", int remoteAdminPort = 1111)
         {
             _client = new TcpClient();
@@ -35,6 +38,15 @@ namespace Atlantis.Net.GameServer
             // TODO: Resolve an IServerCommunicator using remoteAdminPass and remoteAdminPort
         }
 
+        #region Properties
+
+        /// <summary>
+        ///     <para>Gets a value indicating whether the current connection has been established.</para>
+        /// </summary>
+        public bool Connected => _client != null && _client.Connected;
+
+        #endregion
+        
         #region Implementation of IDisposable
 
         /// <summary>
@@ -83,11 +95,8 @@ namespace Atlantis.Net.GameServer
         }
 
         #endregion
-
-        /// <summary>
-        ///     <para>Gets a value indicating whether the current connection has been established.</para>
-        /// </summary>
-        public bool Connected => _client != null && _client.Connected;
+        
+        #region Methods
 
         private void OnMessageReceived(string message)
         {
@@ -110,9 +119,9 @@ namespace Atlantis.Net.GameServer
 
             try
             {
-                var stream  = _client.GetStream();
-                var reader  = new StreamReader(stream, Encoding.UTF8);
-                var sb      = new StringBuilder();
+                var stream = _client.GetStream();
+                var reader = new StreamReader(stream, Encoding.UTF8);
+                var sb = new StringBuilder();
 
                 while (Connected)
                 {
@@ -155,5 +164,7 @@ namespace Atlantis.Net.GameServer
                 // TODO: raise client disconnection event and reconnect potentially
             }
         }
+
+        #endregion
     }
 }
