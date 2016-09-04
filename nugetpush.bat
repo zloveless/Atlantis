@@ -1,12 +1,12 @@
 @echo off
 cd %~dp0
 
+echo [*] Pushing *.nupkg's inside nuget\ folder...
+nuget push nuget\*.nupkg -Source https://www.nuget.org/api/v2/package -ConfigFile %APPDATA%\NuGet\NuGet.config
+
+echo [*] Cleaning up...
+
 for /f "tokens=*" %%G in ('dir /b /a:-h nuget') do (
-    echo [*] Pushing %%G
-    echo "nuget push nuget\%%G"
-    
-    REM Wait..
-    timeout /T 1 >nul
     echo [*] Deleting %%G
-    echo "del nuget\%%G"
+    del nuget\%%G
 )
