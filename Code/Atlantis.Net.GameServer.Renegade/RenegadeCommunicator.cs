@@ -50,6 +50,11 @@ namespace Atlantis.Net.GameServer
             _udpClient = new UdpClient(_szHost, _iPort);
         }
 
+        /// <summary>
+        ///     <inheritdoc />
+        /// </summary>
+        /// <param name="format"></param>
+        /// <param name="args"></param>
         public override void Write(string format, params object[] args)
         {
             Send(format, args);

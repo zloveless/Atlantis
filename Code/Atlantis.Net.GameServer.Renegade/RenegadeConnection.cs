@@ -41,6 +41,11 @@ namespace Atlantis.Net.GameServer
             Communicator = new RenegadeCommunicator(serverAddress, remoteAdminPassword, remoteAdminPort);
         }
 
+        public RenegadeConnection(string serverAddress, int logPort, string remoteAdminPassword, int remoteAdminPort, ILog logger) : this(serverAddress, logPort, remoteAdminPassword, remoteAdminPort)
+        {
+            _logger = logger;
+        }
+
         public RenegadeConnection(string serverAddress, int logPort, ILog logger) : this(serverAddress, logPort)
         {
             _logger = logger;
