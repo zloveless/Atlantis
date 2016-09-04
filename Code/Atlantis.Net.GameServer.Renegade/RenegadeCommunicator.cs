@@ -25,7 +25,7 @@ namespace Atlantis.Net.GameServer
         private DateTime _dtLastPassword = DateTime.MinValue;
         private byte[] _abPing; // password message. We send this every _tsPasswordInterval so cache it
 
-        public RenegadeCommunicator(string serverAddress, int remoteAdminPort, string remoteAdminPass, TimeSpan? passwordInterval = null) : base(serverAddress, remoteAdminPort, remoteAdminPass)
+        public RenegadeCommunicator(string serverAddress, string remoteAdminPass, int remoteAdminPort, TimeSpan? passwordInterval = null) : base(serverAddress, remoteAdminPort, remoteAdminPass)
         {
             if (serverAddress == null
                 || remoteAdminPort > ushort.MaxValue

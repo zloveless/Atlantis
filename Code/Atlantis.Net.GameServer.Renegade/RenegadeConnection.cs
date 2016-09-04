@@ -36,6 +36,11 @@ namespace Atlantis.Net.GameServer
             Initialise();
         }
 
+        public RenegadeConnection(string serverAddress, int logPort, string remoteAdminPassword, int remoteAdminPort) : this(serverAddress, logPort)
+        {
+            Communicator = new RenegadeCommunicator(serverAddress, remoteAdminPassword, remoteAdminPort);
+        }
+
         public RenegadeConnection(string serverAddress, int logPort, ILog logger) : this(serverAddress, logPort)
         {
             _logger = logger;
@@ -81,6 +86,11 @@ namespace Atlantis.Net.GameServer
         ///     <para>Gets a value indicating the log parser to be used for the current server connection.</para>
         /// </summary>
         public IServerParser Parser { get; private set; }
+
+        /// <summary>
+        ///     <para>Gets a value representing the communcation class in which this connection is associated.</para>
+        /// </summary>
+        public ServerCommunicator Communicator { get; private set; }
 
         /// <summary>
         ///     <para>Establishes a connection to the game server.</para>

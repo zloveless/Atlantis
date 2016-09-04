@@ -14,9 +14,8 @@ namespace IrcClientDaemon
 
     public class ProgramRen : IDisposable
     {
-        private readonly IServerConnection renServer = new RenegadeConnection("74.91.113.100", 5463);
+        private readonly IServerConnection renServer = new RenegadeConnection("", 0000);
         
-
         public static void Main(string[] args)
         {
             using (var p = new ProgramRen())

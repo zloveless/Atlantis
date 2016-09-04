@@ -26,6 +26,11 @@ namespace Atlantis.Net.GameServer
 
         #region Methods
 
+        /// <summary>
+        ///     <para>Writes a formatted message to the server remote console.</para>
+        /// </summary>
+        /// <param name="format"></param>
+        /// <param name="args"></param>
         public abstract void Write(string format, params object[] args);
 
         #endregion

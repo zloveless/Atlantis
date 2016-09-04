@@ -14,9 +14,14 @@ namespace Atlantis.Net.GameServer
     public interface IServerConnection : IDisposable
     {
         /// <summary>
-        ///     <para>Gets a value indicating the log parser to be used for the current server connection.</para>
+        ///     <para>Gets a value representing the log parser to be used for the current server connection.</para>
         /// </summary>
         IServerParser Parser { get; }
+
+        /// <summary>
+        ///     <para>Gets a value representing the communcation class in which this connection is associated.</para>
+        /// </summary>
+        ServerCommunicator Communicator { get; }
 
         /// <summary>
         ///     <para>Establishes a connection to the game server.</para>
