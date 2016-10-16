@@ -2,6 +2,11 @@
 cd %~dp0
 SET CONFIG=""
 
+IF NOT EXIST "%~dp0\nuget" (
+    echo [*] Creating nuget\ directory...
+    mkdir "%~dp0\nuget"
+)
+
 IF "%1"=="" (
     SET CONFIG=Debug
 ) ELSE (
