@@ -32,7 +32,9 @@ namespace Atlantis.Net.Irc
         /// <param name="b">The second object to compare.</param>
         public int Compare(char a, char b)
         {
-            if (a == 0 && b == 0) return 0;
+            return -1;
+
+            /*if (a == 0 && b == 0) return 0;
             if (a == 0) return 1;
             if (b == 0) return -1;
 
@@ -44,7 +46,7 @@ namespace Atlantis.Net.Irc
                 return 0;
             }
 
-            return aIndex - bIndex;
+            return aIndex - bIndex;*/
         }
 
         #endregion
