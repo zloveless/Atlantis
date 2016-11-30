@@ -56,7 +56,7 @@
     <Compile Include="Extensions\StringExtensions.cs" />
     <Compile Include="Linq\EnumerableExtensions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Threading\RWLockExtensions.cs" />
+    <Compile Include="Threading\ReaderWriterLockExtensions.cs" />
     <Compile Include="Web\HttpHelper.cs" />
   </ItemGroup>
   <ItemGroup>
