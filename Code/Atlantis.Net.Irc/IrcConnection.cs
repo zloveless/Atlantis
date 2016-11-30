@@ -6,12 +6,15 @@
 
 namespace Atlantis.Net.Irc
 {
+    using System;
     using System.Collections.Generic;
     using System.IO;
     using System.Net.Sockets;
     using System.Text;
     using System.Threading;
+    using System.Threading.Tasks;
 
+    using Atlantis.Collections;
     using Atlantis.Extensions;
 
     /// <summary>
@@ -23,7 +26,6 @@ namespace Atlantis.Net.Irc
         private readonly SemaphoreSlim _writingLock    = new SemaphoreSlim(0, 1);
 
         private TcpClient _client;
-        
         private Stream _stream;
         private StreamReader _reader;
         private Thread _workerThread;
@@ -31,6 +33,7 @@ namespace Atlantis.Net.Irc
         private readonly Queue<string> _messageQueue = new Queue<string>();
         private Thread _queueWorker;
 
+        private readonly GenericDataContainer _data = new GenericDataContainer();
         private Encoding _encoding;
         private IrcProtocol _protocol;
 
@@ -80,6 +83,73 @@ namespace Atlantis.Net.Irc
             }
         }
 
+        public void Send(string message, params object[] args)
+        {
+            lock (_messageQueue)
+            {
+                _messageQueue.Enqueue(string.Format(message, args));
+            }
+        }
+
+        /// <summary>
+        ///     <para>Sends the specified formatted message to the connection after the specified time.</para>
+        /// </summary>
+        /// <param name="delay">The time to delay sending the message in <see cref="T:System.TimeSpan" /> format.</param>
+        /// <param name="message"></param>
+        /// <param name="args"></param>
+        /// <returns></returns>
+        public Task Send(TimeSpan delay, string message, params object[] args)
+        {
+            return Task.Factory.StartNew(async () =>
+                {
+                    await Task.Delay(delay);
+                    return SendImmediately(string.Format(message, args));
+                });
+        }
+
+        /// <summary>
+        ///     <para>Sends the specified formatted message to the connection after the specified time.</para>
+        /// </summary>
+        /// <param name="delay">The time to delay sending the message in milliseconds.</param>
+        /// <param name="message"></param>
+        /// <param name="args"></param>
+        /// <returns></returns>
+        public Task Send(int delay, string message, params object[] args)
+        {
+            return Task.Factory.StartNew(async () =>
+                {
+                    await Task.Delay(delay);
+                    return SendImmediately(string.Format(message, args));
+                });
+        }
+
+        private async Task<bool> SendImmediately(string message)
+        {
+            if (!Connected)
+            {
+                return false;
+            }
+
+            await _writingLock.WaitAsync();
+
+            try
+            {
+                var dataMessage = new StringBuilder(message);
+                dataMessage.Append('\n');
+
+                byte[] buf = Encoding.GetBytes(dataMessage.ToString());
+
+                await _stream.WriteAsync(buf, 0, buf.Length);
+                await _stream.FlushAsync();
+
+                return true;
+            }
+            finally
+            {
+                _writingLock.Release();
+            }
+        }
+
         private void WorkerThreadCallback(object state)
         {
             if (state != null)
@@ -116,7 +186,6 @@ namespace Atlantis.Net.Irc
 
         private void QueueWorkerCallback(object state)
         {
-            
         }
     }
 }
