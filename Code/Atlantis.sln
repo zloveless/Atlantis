@@ -3,14 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.26730.12
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atlantis", "Atlantis\Atlantis.csproj", "{3464FCF7-A68E-40CC-A354-32B80E698890}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Atlantis", "Atlantis\Atlantis.csproj", "{3464FCF7-A68E-40CC-A354-32B80E698890}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atlantis.Net.Irc", "Atlantis.Net.Irc\Atlantis.Net.Irc.csproj", "{07410E3A-D2CF-4A81-BA52-864C8D206664}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Atlantis.Net.Irc", "Atlantis.Net.Irc\Atlantis.Net.Irc.csproj", "{07410E3A-D2CF-4A81-BA52-864C8D206664}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{92E16622-1050-47F2-9AC8-F8B3010F8742}"
 	ProjectSection(SolutionItems) = preProject
 		Directory.Build.props = Directory.Build.props
-		GlobalAssemblyInfo.cs = GlobalAssemblyInfo.cs
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IrcClientDaemon", "IrcClientDaemon\IrcClientDaemon.csproj", "{2A99FC4D-CD01-4DEE-8613-170FA5389A14}"
