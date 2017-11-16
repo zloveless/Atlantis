@@ -7,7 +7,7 @@
     </UpgradeBackupLocation>
     <OldToolsVersion>2.0</OldToolsVersion>
     <Description>Atlantis.Windows is a library of common WPF classes.</Description>
-    <Version>4.1.2</Version>
+    <Version>4.1.3</Version>
     <AssemblyVersion>4.1.3</AssemblyVersion>
     <FileVersion>4.1.3</FileVersion>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
