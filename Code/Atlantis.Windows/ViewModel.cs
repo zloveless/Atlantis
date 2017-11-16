@@ -11,7 +11,6 @@ namespace Atlantis.Windows
     using System.ComponentModel;
     using System.ComponentModel.DataAnnotations;
     using System.Linq;
-    using System.Reflection;
     using System.Runtime.CompilerServices;
 
     public abstract class ViewModel : INotifyPropertyChanged, INotifyPropertyChanging, IDataErrorInfo
@@ -27,11 +26,7 @@ namespace Atlantis.Windows
 
         protected virtual void OnPropertyChanged( [CallerMemberName] string propertyName = null )
         {
-            var handler = PropertyChanged;
-            if( handler != null )
-            {
-                handler( this, new PropertyChangedEventArgs( propertyName ) );
-            }
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
         #endregion
@@ -42,11 +37,7 @@ namespace Atlantis.Windows
 
         protected virtual void OnPropertyChanging( [CallerMemberName] string propertyName = null )
         {
-            var handler = PropertyChanging;
-            if( handler != null )
-            {
-                handler( this, new PropertyChangingEventArgs( propertyName ) );
-            }
+            PropertyChanging?.Invoke(this, new PropertyChangingEventArgs(propertyName));
         }
 
         #endregion
@@ -64,13 +55,16 @@ namespace Atlantis.Windows
         {
             get
             {
-                PropertyInfo propertyInfo = GetType().GetProperty( propertyName );
+                var propertyInfo = GetType().GetProperty( propertyName );
 
                 var results = new List<ValidationResult>();
-                var result = Validator.TryValidateProperty(
-                    propertyInfo.GetValue( this, null ),
-                    new ValidationContext( this, null, null ) { MemberName = propertyName },
-                    results );
+                bool result = Validator.TryValidateProperty(
+                                propertyInfo?.GetValue(this, null),
+                                new ValidationContext(this, null, null)
+                                    {
+                                        MemberName = propertyName
+                                    },
+                                results);
 
                 if( !result )
                 {

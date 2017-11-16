@@ -9,7 +9,4 @@
     <FileVersion>4.1.3</FileVersion>
     <Version>4.1.3</Version>
   </PropertyGroup>
-  <ItemGroup>
-    <Folder Include="Properties\" />
-  </ItemGroup>
 </Project>
