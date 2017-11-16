@@ -22,7 +22,7 @@ namespace Atlantis.Net.Irc
     {
         #region Fields
 
-        private readonly IDictionary<String, Channel> _channels = new ConcurrentDictionary<String, Channel>();
+        private readonly IDictionary<string, Channel> _channels = new ConcurrentDictionary<string, Channel>();
 
         private readonly SemaphoreSlim connectingLock = new SemaphoreSlim(0, 1);
         private readonly SemaphoreSlim writingLock = new SemaphoreSlim(1, 1);
@@ -93,16 +93,13 @@ namespace Atlantis.Net.Irc
         /// <summary>
         /// Gets a value indicating whether the socket is connected to the IRC server.
         /// </summary>
-        public bool Connected
-        {
-            get { return client != null && client.Connected; }
-        }
+        public bool Connected => client != null && client.Connected;
 
         /// <summary>
         ///		<para>Gets or sets a value indicating whether to enable ircv3 features with the IrcClient.</para>
         ///		<para>Defaults to false.</para>
         /// </summary>
-        public bool EnableV3 { get; set; }
+        public bool EnableV3 { get; set; } = false;
 
         public Encoding Encoding { get; set; }
 
@@ -111,12 +108,12 @@ namespace Atlantis.Net.Irc
         /// <summary>
         /// Gets or sets the host indicating the location of the IRC server.
         /// </summary>
-        public String HostName { get; set; }
+        public string HostName { get; set; }
 
         /// <summary>
         /// Gets or sets a value representing our user info on IRC.
         /// </summary>
-        public String Ident { get; set; }
+        public string Ident { get; set; }
 
         /// <summary>
         /// Gets a value indicating whether the IrcClient has been initialized.
@@ -127,8 +124,8 @@ namespace Atlantis.Net.Irc
             {
                 bool ret = true;
 
-                if (String.IsNullOrEmpty(HostName)) ret = false;
-                else if (String.IsNullOrEmpty(Nick)) ret = false;
+                if (string.IsNullOrEmpty(HostName)) ret = false;
+                else if (string.IsNullOrEmpty(Nick)) ret = false;
 
                 return ret;
             }
@@ -142,7 +139,7 @@ namespace Atlantis.Net.Irc
         /// <summary>
         /// Gets or sets the nick that represents us on the IRC server.
         /// </summary>
-        public String Nick { get; set; }
+        public string Nick { get; set; }
 
         /// <summary>
         /// Gets or sets options for connecting to the IRC server.
@@ -152,7 +149,7 @@ namespace Atlantis.Net.Irc
         /// <summary>
         /// Gets or sets a value representing the password used for connecting to the IRC server.
         /// </summary>
-        public String Password { get; set; }
+        public string Password { get; set; }
 
         /// <summary>
         /// Gets or sets the port for connecting to the IRC server.
@@ -167,7 +164,7 @@ namespace Atlantis.Net.Irc
         /// <summary>
         /// Gets or sets the realname of ourself on the IRC server.
         /// </summary>
-        public String RealName { get; set; }
+        public string RealName { get; set; }
 
         #endregion
 
@@ -179,7 +176,7 @@ namespace Atlantis.Net.Irc
         /// <param name="channelName"></param>
         /// <returns></returns>
         /// <exception cref="T:Atlantis.Net.Irc.RfcException" />
-        public Channel GetChannel(String channelName)
+        public Channel GetChannel(string channelName)
         {
             Channel c;
 
@@ -192,7 +189,7 @@ namespace Atlantis.Net.Irc
 
                 if (info.ChannelLength > 0 && channelName.Length > info.ChannelLength)
                 { // Check if the channel length is greater than zero (whether we have it set) and whether the channel name specified conforms to that length.
-                    throw new RfcException(String.Format("The length of the channel {0} cannot exceed a length of {1} as provided by the IRC server.", channelName, info.ChannelLength));
+                    throw new RfcException(string.Format("The length of the channel {0} cannot exceed a length of {1} as provided by the IRC server.", channelName, info.ChannelLength));
                 }
 
                 c = new Channel(this, channelName);
@@ -202,7 +199,7 @@ namespace Atlantis.Net.Irc
             return c;
         }
 
-        public void RemoveChannel(String channelName)
+        public void RemoveChannel(string channelName)
         {
             lock (_channels)
             {
@@ -215,12 +212,12 @@ namespace Atlantis.Net.Irc
 
         protected virtual void SetDefaultValues()
         {
-            if (String.IsNullOrEmpty(Ident))
+            if (string.IsNullOrEmpty(Ident))
             {
                 Ident = Nick.ToLower();
             }
 
-            if (String.IsNullOrEmpty(RealName))
+            if (string.IsNullOrEmpty(RealName))
             {
                 RealName = Nick;
             }
@@ -231,7 +228,7 @@ namespace Atlantis.Net.Irc
             }
         }
 
-        public async void SetNick(String newNick)
+        public async void SetNick(string newNick)
         {
             await Send("NICK {0}", newNick);
             _currentNick = newNick;
@@ -243,7 +240,7 @@ namespace Atlantis.Net.Irc
         /// <param name="format"></param>
         /// <param name="args"></param>
         /// <returns></returns>
-        public async Task<bool> Send(String format, params object[] args)
+        public async Task<bool> Send(string format, params object[] args)
         {
             if (!Connected)
             {
@@ -280,13 +277,19 @@ namespace Atlantis.Net.Irc
             SetDefaultValues();
             try
             {
+#if NET452
                 var connection = new IPEndPoint(Dns.GetHostEntry(HostName).AddressList[0], Port);
                 client.Connect(connection);
+#else
+                await client.ConnectAsync(HostName, Port);
+#endif
             }
-            catch (SocketException e)
+            catch (SocketException)
             {
                 // TODO: Raise disconnection event.
-                var exc = e;
+#if DEBUG
+                throw;
+#endif
             }
 
             worker.IsBackground = true;
@@ -296,12 +299,12 @@ namespace Atlantis.Net.Irc
             return true;
         }
 
-        public async void Stop(String reason = null)
+        public async void Stop(string reason = null)
         {
             if (Connected)
             {
                 requestShutdown = true;
-                if (String.IsNullOrEmpty(reason))
+                if (string.IsNullOrEmpty(reason))
                 {
                     await Send("QUIT");
                 }
@@ -312,21 +315,21 @@ namespace Atlantis.Net.Irc
             }
         }
 
-        #endregion
+#endregion
     }
 
-    #region External type: RfcException
+#region External type: RfcException
 
     /// <summary>
     /// 
     /// </summary>
     public class RfcException : Exception
     {
-        public RfcException(String message)
+        public RfcException(string message)
             : base(message)
         {
         }
     }
 
-    #endregion
+#endregion
 }

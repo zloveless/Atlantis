@@ -4,6 +4,7 @@
 //  </copyright>
 // -----------------------------------------------------------------------------
 
+#if NET452
 namespace Atlantis.Linq
 {
 	using System;
@@ -12,9 +13,10 @@ namespace Atlantis.Linq
 
 	public static partial class Extensions
 	{
-		public static String GetDescription(this Enum source)
+		public static string GetDescription(this Enum source)
 		{
-			if (source == null) throw new ArgumentNullException("source");
+            // TODO: This doesn't work for .NET Standard 1.4.x. Fix it.
+			if (source == null) throw new ArgumentNullException(nameof(source));
 
 			// http://weblogs.asp.net/grantbarrington/archive/2009/01/19/enumhelper-getting-a-friendly-description-from-an-enum.aspx#7801000
 			return (from m in source.GetType().GetMember(source.ToString())
@@ -23,3 +25,4 @@ namespace Atlantis.Linq
 		}
 	}
 }
+#endif

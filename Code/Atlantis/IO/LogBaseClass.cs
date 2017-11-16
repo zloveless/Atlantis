@@ -13,10 +13,11 @@ namespace Atlantis.IO
 	public abstract class LogBaseClass : ILog
 	{
 		protected Stream stream;
+	    protected Encoding _encoding = Encoding.UTF8;
 
 		#region Methods
 
-		protected virtual StringBuilder BuildLogMessage(LogThreshold threshold, String format, params object[] args)
+		protected virtual StringBuilder BuildLogMessage(LogThreshold threshold, string format, params object[] args)
 		{
 			var builder = new StringBuilder();
 
@@ -24,7 +25,7 @@ namespace Atlantis.IO
 			{
 				builder.Append(threshold.ToString().ToUpper());
 
-				if (!String.IsNullOrEmpty(Prefix))
+				if (!string.IsNullOrEmpty(Prefix))
 				{
 					builder.Append(" ");
 					builder.Append(Prefix);
@@ -44,13 +45,13 @@ namespace Atlantis.IO
 			return builder;
 		}
 
-		protected virtual void Write(LogThreshold threshold, String format, params object[] args)
+		protected virtual void Write(LogThreshold threshold, string format, params object[] args)
 		{
 			if (Threshold.HasFlag(threshold))
 			{
 				var message = BuildLogMessage(threshold, format, args);
 
-				var buf = Encoding.Default.GetBytes(message.ToString());
+				var buf = _encoding.GetBytes(message.ToString());
 				stream.Write(buf, 0, buf.Length);
 				stream.Flush();
 			}
@@ -69,7 +70,7 @@ namespace Atlantis.IO
 			GC.SuppressFinalize(this);
 		}
 
-		protected virtual void Dispose(Boolean disposing)
+		protected virtual void Dispose(bool disposing)
 		{
 			if (!disposing) return;
 
@@ -86,52 +87,52 @@ namespace Atlantis.IO
 
 		public string Prefix { get; set; }
 		
-		public virtual void Debug(String message)
+		public virtual void Debug(string message)
 		{
 			Write(LogThreshold.Debug, message);
 		}
 
-		public virtual void DebugFormat(String format, params Object[] args)
+		public virtual void DebugFormat(string format, params object[] args)
 		{
 			Write(LogThreshold.Debug, format, args);
 		}
 
-		public virtual void Error(String message)
+		public virtual void Error(string message)
 		{
 			Write(LogThreshold.Error, message);
 		}
 
-		public virtual void ErrorFormat(String format, params Object[] args)
+		public virtual void ErrorFormat(string format, params object[] args)
 		{
 			Write(LogThreshold.Error, format, args);
 		}
 
-		public virtual void Fatal(String message)
+		public virtual void Fatal(string message)
 		{
 			Write(LogThreshold.Fatal, message);
 		}
 
-		public void FatalFormat(String format, params Object[] args)
+		public void FatalFormat(string format, params object[] args)
 		{
 			Write(LogThreshold.Fatal, format, args);
 		}
 
-		public virtual void Info(String message)
+		public virtual void Info(string message)
 		{
 			Write(LogThreshold.Info, message);
 		}
 
-		public virtual void InfoFormat(String format, params Object[] args)
+		public virtual void InfoFormat(string format, params object[] args)
 		{
 			Write(LogThreshold.Info, format, args);
 		}
 
-		public virtual void Warn(String message)
+		public virtual void Warn(string message)
 		{
 			Write(LogThreshold.Warning, message);
 		}
 
-		public virtual void WarnFormat(String format, params Object[] args)
+		public virtual void WarnFormat(string format, params object[] args)
 		{
 			Write(LogThreshold.Warning, format, args);
 		}

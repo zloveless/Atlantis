@@ -11,7 +11,6 @@ namespace Atlantis.Net.Irc
     using System.Diagnostics;
     using System.IO;
     using System.Linq;
-    using System.Runtime.Remoting.Channels;
     using System.Text;
     using System.Text.RegularExpressions;
     using Atlantis.Linq;
@@ -25,31 +24,21 @@ namespace Atlantis.Net.Irc
         private bool useExtendedNames;
         private bool useUserhostNames;
         private DateTime lastMessage;
-        private String accessRegex;
+        private string accessRegex;
 
         #endregion
 
         #region Properties
 
         public char CommandPrefix { get; set; }
-
         public bool EnableCommandParsing { get; set; }
-
-        public String PrefixModes
-        {
-            get { return info.PrefixModes; }
-        }
-
-        public String Prefixes
-        {
-            get { return info.Prefixes; }
-        }
-
+        public string PrefixModes => info.PrefixModes;
+        public string Prefixes => info.Prefixes;
         public bool StrictNames { get; set; }
 
         #endregion
 
-        protected IEnumerable<GenericMode> ParseChanModes(String modestr, params String[] parameters)
+        protected IEnumerable<GenericMode> ParseChanModes(string modestr, params string[] parameters)
         {
             bool set = false;
             for (int modeIndex = 0, parameterIndex = 0; modeIndex < modestr.Length; ++modeIndex)
@@ -58,20 +47,20 @@ namespace Atlantis.Net.Irc
                 else if (modestr[modeIndex] == '-') set = false;
                 else if (info.ListModes.Contains(modestr[modeIndex]))
                 { // List modes always require a parameter.
-                    String arg = parameters[parameterIndex];
+                    string arg = parameters[parameterIndex];
                     parameterIndex++;
                     yield return new GenericMode { Mode = modestr[modeIndex], IsSet = set, Parameter = arg, Type = ModeType.LIST };
                 }
                 else if (info.ModesWithParameter.Contains(modestr[modeIndex]))
                 { // Modes that always take a parameter, regardless.
-                    String arg = parameters[parameterIndex];
+                    string arg = parameters[parameterIndex];
                     parameterIndex++;
                     yield return
                         new GenericMode { Mode = modestr[modeIndex], IsSet = set, Parameter = arg, Type = ModeType.SETUNSET };
                 }
                 else if (info.ModesWithParameterWhenSet.Contains(modestr[modeIndex]))
                 { // Modes that only take a parameter when being set.
-                    String arg = null;
+                    string arg = null;
                     if (set)
                     {
                         arg = parameters[parameterIndex];
@@ -86,7 +75,7 @@ namespace Atlantis.Net.Irc
                 }
                 else if (info.PrefixModes.Contains(modestr[modeIndex]))
                 { // Modes that indicate access on a channel.
-                    String arg = parameters[parameterIndex];
+                    string arg = parameters[parameterIndex];
                     parameterIndex++;
 
                     yield return
@@ -95,7 +84,7 @@ namespace Atlantis.Net.Irc
             }
         }
 
-        protected IEnumerable<GenericMode> ParseUserModes(String modestr, params String[] parameters)
+        protected IEnumerable<GenericMode> ParseUserModes(string modestr, params string[] parameters)
         {
             bool set = false;
             foreach (char t in modestr)
@@ -111,7 +100,7 @@ namespace Atlantis.Net.Irc
             }
         }
 
-        private async void FillChannelLists(String target)
+        private async void FillChannelLists(string target)
         {
             foreach (char c in info.ListModes)
             {
@@ -128,7 +117,7 @@ namespace Atlantis.Net.Irc
             var tokens = line.Split(' ');
             var tokenIndex = 0;
 
-            String source = null;
+            string source = null;
             if (tokens[tokenIndex][0] == ':')
             {
                 // TODO: source parsing
@@ -144,7 +133,7 @@ namespace Atlantis.Net.Irc
             }
 
             var commandName = tokens[tokenIndex++];
-            var parameters = new List<String>();
+            var parameters = new List<string>();
 
             while (tokenIndex != tokens.Length)
             {
@@ -154,12 +143,12 @@ namespace Atlantis.Net.Irc
                     continue;
                 }
 
-                parameters.Add(String.Join(" ", tokens.Skip(tokenIndex)).Substring(1));
+                parameters.Add(string.Join(" ", tokens.Skip(tokenIndex)).Substring(1));
                 break;
             }
 
             int numeric = 0;
-            if (Int32.TryParse(commandName, out numeric))
+            if (int.TryParse(commandName, out numeric))
             {
                 OnRfcNumeric(numeric, source, parameters.ToArray());
             }
@@ -169,9 +158,9 @@ namespace Atlantis.Net.Irc
             }
         }
 
-        protected virtual async void OnJoin(String source, String target)
+        protected virtual async void OnJoin(string source, string target)
         {
-            String nick = source.GetNickFromSource();
+            string nick = source.GetNickFromSource();
             bool me = _currentNick.EqualsIgnoreCase(nick);
 
             if (me && FillListsOnJoin)
@@ -193,14 +182,14 @@ namespace Atlantis.Net.Irc
             JoinEvent.Raise(this, new JoinPartEventArgs(nick, target, me: me));
         }
 
-        protected virtual void OnModeChanged(char mode, String parameter, String setter, String target, ModeType type)
+        protected virtual void OnModeChanged(char mode, string parameter, string setter, string target, ModeType type)
         {
             ModeChangedEvent.Raise(this, new ModeChangedEventArgs(mode, parameter, setter, target, type));
         }
 
-        protected virtual void OnNickChanged(String source, String currentNick)
+        protected virtual void OnNickChanged(string source, string currentNick)
         {
-            String previousNick = source.GetNickFromSource();
+            string previousNick = source.GetNickFromSource();
 
             if (_currentNick.EqualsIgnoreCase(previousNick))
             { // our nick has updated.
@@ -213,14 +202,14 @@ namespace Atlantis.Net.Irc
             }
         }
 
-        protected virtual void OnNotice(String source, String target, String message)
+        protected virtual void OnNotice(string source, string target, string message)
         {
             NoticeReceivedEvent.Raise(this, new MessageReceivedEventArgs(source, target, message));
         }
 
-        protected virtual async void OnPart(String source, String target, String message)
+        protected virtual async void OnPart(string source, string target, string message)
         {
-            String sourceNick = source.GetNickFromSource();
+            string sourceNick = source.GetNickFromSource();
             bool me = _currentNick.EqualsIgnoreCase(sourceNick);
 
             if (me)
@@ -241,12 +230,12 @@ namespace Atlantis.Net.Irc
             PartEvent.Raise(this, new JoinPartEventArgs(sourceNick, target, message, me));
         }
 
-        private void OnPreModeParse(String source, String target, String modestr, String[] parameters)
+        private void OnPreModeParse(string source, string target, string modestr, string[] parameters)
         {
             // TODO: refactor method name since this isn't going to be a hook-point for overrides
             // TODO: decipher what past-me meant by the above statement.
             // TODO: leave these funny comments for posterity.
-            String sourceNick = source.GetNickFromSource();
+            string sourceNick = source.GetNickFromSource();
 
             if (target.StartsWith("#"))
             {
@@ -323,13 +312,13 @@ namespace Atlantis.Net.Irc
                 return;
             }
 
-            if (!String.IsNullOrEmpty(Password))
+            if (!string.IsNullOrEmpty(Password))
             {
                 await Send("PASS {0}", Password);
             }
 
             SetNick(Nick);
-            await Send("USER {0} 0 * {1}", Ident, RealName.Contains(" ") ? String.Concat(":", RealName) : RealName);
+            await Send("USER {0} 0 * {1}", Ident, RealName.Contains(" ") ? string.Concat(":", RealName) : RealName);
 
             /* This causes a registration timeout.
             if (EnableV3)
@@ -339,7 +328,7 @@ namespace Atlantis.Net.Irc
             }*/
         }
 
-        protected virtual void OnPrivmsg(String source, String target, String message)
+        protected virtual void OnPrivmsg(string source, string target, string message)
         {
             PrivmsgReceivedEvent.Raise(this, new MessageReceivedEventArgs(source, target, message));
 
@@ -373,7 +362,7 @@ namespace Atlantis.Net.Irc
             }
         }
 
-        protected virtual void OnQuit(String source, String message)
+        protected virtual void OnQuit(string source, string message)
         {
             string sourceNick = source.GetNickFromSource();
 
@@ -388,7 +377,7 @@ namespace Atlantis.Net.Irc
             QuitEvent.Raise(this, new QuitEventArgs(source, message));
         }
 
-        protected virtual async void OnRfcEvent(String command, String source, String[] parameters)
+        protected virtual async void OnRfcEvent(string command, string source, string[] parameters)
         {
             if (command.EqualsIgnoreCase("PING"))
             {
@@ -428,11 +417,11 @@ namespace Atlantis.Net.Irc
                 {
                     if (source.IsServerSource())
                     {
-                        OnPrivmsg(source, null, String.Join(" ", parameters));
+                        OnPrivmsg(source, null, string.Join(" ", parameters));
                     }
                     else
                     {
-                        OnPrivmsg(source, parameters[0], String.Join(" ", parameters.Skip(1)));
+                        OnPrivmsg(source, parameters[0], string.Join(" ", parameters.Skip(1)));
                     }
                 }
             }
@@ -446,11 +435,11 @@ namespace Atlantis.Net.Irc
                 {
                     if (source.IsServerSource())
                     {
-                        OnNotice(source, null, String.Join(" ", parameters));
+                        OnNotice(source, null, string.Join(" ", parameters));
                     }
                     else
                     {
-                        OnNotice(source, parameters[0], String.Join(" ", parameters.Skip(1)));
+                        OnNotice(source, parameters[0], string.Join(" ", parameters.Skip(1)));
                     }
                 }
             }
@@ -464,10 +453,10 @@ namespace Atlantis.Net.Irc
             {
                 Debug.Assert(source != null, "Source is null on part.");
 
-                String message = null;
+                string message = null;
                 if (parameters.Length > 1)
                 {
-                    message = String.Join(" ", parameters.Skip(1));
+                    message = string.Join(" ", parameters.Skip(1));
                 }
 
                 OnPart(source, parameters[0], message);
@@ -478,7 +467,7 @@ namespace Atlantis.Net.Irc
             }
             else if (command.EqualsIgnoreCase("QUIT"))
             {
-                OnQuit(source, String.Join(" ", parameters));
+                OnQuit(source, string.Join(" ", parameters));
             }
             else if (command.EqualsIgnoreCase("NICK"))
             {
@@ -494,9 +483,9 @@ namespace Atlantis.Net.Irc
             }
         }
 
-        protected virtual async void OnRfcNumeric(Int32 numeric, String source, String[] parameters)
+        protected virtual async void OnRfcNumeric(int numeric, string source, string[] parameters)
         {
-            RfcNumericReceivedEvent.Raise(this, new RfcNumericReceivedEventArgs(numeric, String.Join(" ", parameters)));
+            RfcNumericReceivedEvent.Raise(this, new RfcNumericReceivedEventArgs(numeric, string.Join(" ", parameters)));
 
             if (numeric == RPL_WELCOME)
             { // Welcome packet
@@ -505,9 +494,9 @@ namespace Atlantis.Net.Irc
             }
             else if (numeric == 5)
             { // Contribution for handy parsing of 005 courtesy of @aca20031
-                Dictionary<String, String> args = new Dictionary<String, String>(StringComparer.OrdinalIgnoreCase);
-                String[] tokens = parameters.Skip(1).ToArray();
-                foreach (String token in tokens)
+                Dictionary<string, string> args = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                string[] tokens = parameters.Skip(1).ToArray();
+                foreach (string token in tokens)
                 {
                     int equalIndex = token.IndexOf('=');
                     if (equalIndex >= 0)
@@ -522,7 +511,7 @@ namespace Atlantis.Net.Irc
 
                 if (args.ContainsKey("PREFIX"))
                 {
-                    String value = args["PREFIX"];
+                    string value = args["PREFIX"];
                     Match m;
                     if (value.TryMatch(@"\(([^\)]+)\)(\S+)", out m))
                     {
@@ -533,7 +522,7 @@ namespace Atlantis.Net.Irc
 
                 if (args.ContainsKey("CHANMODES"))
                 {
-                    String[] chanmodes = args["CHANMODES"].Split(',');
+                    string[] chanmodes = args["CHANMODES"].Split(',');
 
                     info.ListModes = chanmodes[0];
                     info.ModesWithParameter = chanmodes[1];
@@ -544,7 +533,7 @@ namespace Atlantis.Net.Irc
                 if (args.ContainsKey("MODES"))
                 {
                     int modeslen;
-                    if (Int32.TryParse(args["MODES"], out modeslen))
+                    if (int.TryParse(args["MODES"], out modeslen))
                     {
                         info.MaxModes = modeslen;
                     }
@@ -553,7 +542,7 @@ namespace Atlantis.Net.Irc
                 if (args.ContainsKey("TOPICLEN"))
                 {
                     int topiclen;
-                    if (Int32.TryParse(args["TOPICLEN"], out topiclen))
+                    if (int.TryParse(args["TOPICLEN"], out topiclen))
                     {
                         info.TopicLength = topiclen;
                     }
@@ -582,20 +571,20 @@ namespace Atlantis.Net.Irc
                 // UHNAMES: (?<prefix>[!~&@%+]*)(?<nick>[^!]+)!(?<ident>[^@]+)@(?<host>[^ ]+)
                 // (?<prefix>[!~&@%+]*)(?<nick>[^!]+)(?:!(?<ident>[^@]+)@(?<host>[^ ]+))?
 
-                if (String.IsNullOrEmpty(accessRegex))
+                if (string.IsNullOrEmpty(accessRegex))
                 {
-                    accessRegex = String.Format(@"(?<prefix>[{0}]*)(?<nick>[^! ]+)(?:!(?<ident>[^@]+)@(?<host>[^ ]+))?", Prefixes);
+                    accessRegex = string.Format(@"(?<prefix>[{0}]*)(?<nick>[^! ]+)(?:!(?<ident>[^@]+)@(?<host>[^ ]+))?", Prefixes);
                 }
 
                 var c = GetChannel(parameters[2]); // never null.
-                var names = String.Join(" ", parameters.Skip(3));
+                var names = string.Join(" ", parameters.Skip(3));
 
                 MatchCollection matches;
                 if (names.TryMatches(accessRegex, out matches))
                 {
                     foreach (Match item in matches)
                     { // for now, we only care for the nick and the prefix(es).
-                        String nick = item.Groups["nick"].Value;
+                        string nick = item.Groups["nick"].Value;
 
                         if (useExtendedNames)
                         {
@@ -645,8 +634,8 @@ namespace Atlantis.Net.Irc
                 {
                     while (!reader.EndOfStream)
                     {
-                        String line = reader.ReadLine().TrimIfNotNull();
-                        if (!String.IsNullOrEmpty(line))
+                        string line = reader.ReadLine().TrimIfNotNull();
+                        if (!string.IsNullOrEmpty(line))
                         {
                             OnDataRecv(line);
                         }
