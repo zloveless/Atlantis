@@ -4,7 +4,7 @@
     <Product>Atlantis</Product>
     <InformationalVersion>4.1.3</InformationalVersion>
     <AssemblyVersion>4.1.3</AssemblyVersion>
-    <Description></Description>
+    <Description>Atlantis is a collection of code that is common amongst many pet projects.</Description>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <FileVersion>4.1.3</FileVersion>
     <Version>4.1.3</Version>

@@ -1,7 +1,7 @@
 ﻿<Project>
   <PropertyGroup>
     <Company>Zack Loveless</Company>
-    <Copyright>Copyright \u00a9 2017 Zack Loveless. All rights reserved.</Copyright>
+    <Copyright>Copyright (c) 2017 Zack Loveless. All rights reserved.</Copyright>
     <Authors>Genesis2001</Authors>
     <PackageProjectUrl>https://github.com/zloveless/Atlantis/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/zloveless/Atlantis/</RepositoryUrl>
