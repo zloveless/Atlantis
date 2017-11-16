@@ -5,5 +5,6 @@
     <Authors>Genesis2001</Authors>
     <PackageProjectUrl>https://github.com/zloveless/Atlantis/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/zloveless/Atlantis/</RepositoryUrl>
+    <OutputPath>..\..\Build\$(Configuration)\</OutputPath>
   </PropertyGroup>
 </Project>
