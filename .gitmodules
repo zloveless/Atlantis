@@ -4,3 +4,6 @@
 [submodule "Atlantis.Unity"]
 	path = Atlantis.Unity
 	url = git@github.com:zloveless/Atlantis.Unity.git
+[submodule "Atlantis.Net.Irc"]
+	path = Atlantis.Net.Irc
+	url = git@github.com:zloveless/Atlantis.Net.Irc.git
