@@ -7,3 +7,4 @@
 [submodule "Atlantis.Net.Irc"]
 	path = Atlantis.Net.Irc
 	url = git@github.com:zloveless/Atlantis.Net.Irc.git
+    branch = 4.3
