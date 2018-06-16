@@ -1,3 +1,6 @@
 [submodule "Atlantis.Windows"]
 	path = Atlantis.Windows
 	url = git@github.com:zloveless/Atlantis.Windows.git
+[submodule "Atlantis.Unity"]
+	path = Atlantis.Unity
+	url = git@github.com:zloveless/Atlantis.Unity.git
