@@ -2,11 +2,11 @@
   <PropertyGroup>
     <TargetFrameworks>netstandard1.4;net452</TargetFrameworks>
     <Product>Atlantis</Product>
-    <InformationalVersion>4.1.3</InformationalVersion>
-    <AssemblyVersion>4.1.3</AssemblyVersion>
     <Description>Atlantis is a collection of code that is common amongst many pet projects.</Description>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <FileVersion>4.1.3</FileVersion>
-    <Version>4.1.3</Version>
+    <FileVersion>5.0.0</FileVersion>
+    <Version>5.0.0</Version>
+    <AssemblyVersion>5.0.0</AssemblyVersion>
+    <InformationalVersion>5.0.0-alpha</InformationalVersion>
   </PropertyGroup>
 </Project>
