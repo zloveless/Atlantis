@@ -1,20 +1,32 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>netstandard1.4;net452</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0;net461</TargetFrameworks>
     <Version>5.0.0</Version>
     <AssemblyVersion>5.0.0</AssemblyVersion>
     <FileVersion>5.0.0</FileVersion>
     <InformationalVersion>5.0.0-alpha</InformationalVersion>
-    <Description>Atlantis.Net.Irc is an implementation of the IRC RFC (not 100%) for my own purposes. It features a very fast IRC message parser, asynchronous message transmission, an event system, and a basic command system.</Description>
+    <Description>Atlantis.Net.Irc is an implementation of the IRC RFC1459, RFC2812, and RFC2813. It features a very fast IRC message parser, asynchronous message transmission, an event system, and a basic command system.</Description>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="IrcClient.cs" />
+    <Compile Remove="IrcClient_IDisposable.cs" />
+    <Compile Remove="IrcServer.cs" />
+    <Compile Remove="IrcServerConfiguration.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="JetBrains.Annotations" Version="2018.2.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="2.1.1" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="2.1.1" />
     <PackageReference Include="System.Net.Primitives" Version="4.3.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Atlantis\Atlantis.csproj" />
   </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard1.4'">
+  <ItemGroup>
+    <Folder Include="Properties\" />
+  </ItemGroup>
+  <!--<ItemGroup Condition="'$(TargetFramework)' == 'netstandard1.4'">
     <PackageReference Include="System.Net.NameResolution">
       <Version>4.3.0</Version>
     </PackageReference>
@@ -24,5 +36,5 @@
     <PackageReference Include="System.Threading.Thread">
       <Version>4.3.0</Version>
     </PackageReference>
-  </ItemGroup>
+  </ItemGroup>-->
 </Project>

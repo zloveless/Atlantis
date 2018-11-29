@@ -27,7 +27,7 @@ namespace Atlantis.Windows.Commands
         /// <inheritdoc />
         public bool CanExecute(object parameter)
         {
-            throw new NotImplementedException();
+            return _condition == null || _condition(parameter);
         }
 
         /// <inheritdoc />

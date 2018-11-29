@@ -8,12 +8,9 @@ namespace Atlantis.Windows.Commands
 {
     using System;
     using WF = System.Windows.Forms;
-    using System.Windows.Input;
-    
+
     public class BrowseFolderCommand : MvvmCommandBase
     {
-        private readonly Func<object, bool> _condition;
-
         public BrowseFolderCommand(Func<object, bool> conditional) : base(conditional)
         {
         }
