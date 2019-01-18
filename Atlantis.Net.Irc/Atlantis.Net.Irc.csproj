@@ -10,6 +10,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="IrcClient.cs" />
+    <Compile Remove="IrcClientConfiguration.cs" />
     <Compile Remove="IrcClient_IDisposable.cs" />
     <Compile Remove="IrcServer.cs" />
     <Compile Remove="IrcServerConfiguration.cs" />
@@ -22,9 +23,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Atlantis\Atlantis.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Properties\" />
   </ItemGroup>
   <!--<ItemGroup Condition="'$(TargetFramework)' == 'netstandard1.4'">
     <PackageReference Include="System.Net.NameResolution">

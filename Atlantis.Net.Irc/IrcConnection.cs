@@ -10,15 +10,18 @@
  * https://tools.ietf.org/html/rfc2813
  * https://tools.ietf.org/html/rfc7194
  * https://ircv3.net/irc/
+ * 
+ * ---
+ * https://stackoverflow.com/a/2047657
+ * http://blog.ploeh.dk/2014/05/19/di-friendly-library/
  */
 
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using System.Net.Security;
 using System.Net.Sockets;
-using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Atlantis.Net.Irc.Commands;
@@ -30,12 +33,17 @@ namespace Atlantis.Net.Irc
     public partial class IrcConnection
     {
         private readonly IOptions<IrcConfiguration> _config;
-        private ILogger<IrcConnection> _logger;
+        private readonly short _connectionType;
+        private readonly ILogger<IrcConnection> _logger;
+
         private Stream _networkStream;
         private TcpClient _socket;
         private Thread _thread;
-
+        
         private string _host;
+        private string _currentNick;
+        private Encoding _encoding = new UTF8Encoding();
+
         private IrcRegistrationCallback _registrationCallback;
 
         private readonly SemaphoreSlim _writingLock = new SemaphoreSlim(1, 1);
@@ -45,25 +53,26 @@ namespace Atlantis.Net.Irc
         private readonly IDictionary<string, IIrcCommand> _commands = new ConcurrentDictionary<string, IIrcCommand>(StringComparer.OrdinalIgnoreCase);
         private readonly IDictionary<int, IIrcNumeric> _numerics = new ConcurrentDictionary<int, IIrcNumeric>();
 
-        public IrcConnection()
+        public const short IrcConnectionTypeClient = 1;
+        public const short IrcConnectionTypeServer = 2;
+
+        public IrcConnection(short connectionType, IOptions<IrcConfiguration> config) : this(connectionType, config, null)
         {
         }
 
-        public IrcConnection(IOptions<IrcConfiguration> config) : this(config, null)
-        {
-        }
-
-        public IrcConnection(IOptions<IrcConfiguration> config, ILogger<IrcConnection> logger)
+        public IrcConnection(short connectionType, IOptions<IrcConfiguration> config, ILogger<IrcConnection> logger)
         {
             _config = config;
             _logger = logger;
+
+            _connectionType = connectionType;
         }
 
         /// <summary>
         ///     <para>Gets a value indicating whether the underlying <see cref="TcpClient" /> for a <see cref="IrcClient"/> is connected to the remote host.</para>
         /// </summary>
         public bool IsConnected => _socket != null && _socket.Connected;
-
+        
         /// <summary>
         ///     <para>Attempts to find the specified command handler, otherwise returns null.</para>
         /// </summary>
@@ -126,13 +135,6 @@ namespace Atlantis.Net.Irc
             _numerics.Add(command.Numeric, command);
         }
 
-        /// <summary>
-        ///     <para></para>
-        /// </summary>
-        /// <param name="hostNameOrAddress"></param>
-        /// <param name="portNumber"></param>
-        /// <param name="registrationCallback"></param>
-        /// <returns></returns>
         public async Task<bool> OpenAsync(string hostNameOrAddress, short portNumber, IrcRegistrationCallback registrationCallback)
         {
             try
@@ -167,55 +169,39 @@ namespace Atlantis.Net.Irc
             _cts.CancelAfter(millisecondsDelay: 100);
         }
 
-        private void ThreadCallback(object arg0)
+        public async Task SendAsync(string message)
         {
-            if (_config.Value.EnableSsl)
+            try
             {
-                var baseStream = _socket.GetStream();
-                var sslStream = new SslStream(baseStream, leaveInnerStreamOpen: false, userCertificateValidationCallback: ValidationCallback);
-                var cert = GetCertificate(_config.Value.SslCertificate, _config.Value.SslCertificateKey);
+                await _writingLock.WaitAsync();
 
-                sslStream.AuthenticateAsClient(_host, new X509CertificateCollection(new[] { cert }), System.Security.Authentication.SslProtocols.Tls12, false);
+                var msg = new StringBuilder(message).Append('\n');
+                var buf = _encoding.GetBytes(msg.ToString());
+
+                await _networkStream.WriteAsync(buf, 0, buf.Length);
+                await _networkStream.FlushAsync();
             }
-            else
+            finally
             {
-                _networkStream = _socket.GetStream();
-            }
-
-            using (var reader = new StreamReader(_networkStream))
-            {
-                while (IsConnected)
-                {
-                    if (_cts.IsCancellationRequested) break;
-
-                    var line = reader.ReadLine();
-                    if (string.IsNullOrEmpty(line)) continue;
-
-                    OnDataReceived(line);
-                }
+                _writingLock.Release();
             }
         }
 
-        private bool ValidationCallback(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslpolicyerrors)
+        public Task SendAsync(string messageFormat, params object[] args)
         {
-            // TODO: Do certificate subject and domain check?
-            return true;
+            var msg = new StringBuilder().AppendFormat(messageFormat, args);
+            return SendAsync(msg.ToString());
         }
 
-        protected virtual void OnDataReceived(string message)
+        public async Task SetNickAsync(string nickname)
         {
-            if (_registrationCallback != null)
+            // Don't bother trying to send/flood the server with NICK commands.
+            if (nickname.Equals(_currentNick, StringComparison.OrdinalIgnoreCase)) return;
+
+            await SendAsync($"NICK {nickname}").ContinueWith(x =>
             {
-                _registrationCallback(this);
-                _registrationCallback = null;
-            }
-
-            // TODO!
-        }
-
-        private X509Certificate GetCertificate(string clientCertificate, string certificatePrivateKeyFile)
-        {
-            return null;
+                _currentNick = nickname;
+            });
         }
     }
 }
