@@ -275,22 +275,14 @@ namespace Atlantis.Net.Irc
             }
 
             SetDefaultValues();
-            try
-            {
 #if NET452
-                var connection = new IPEndPoint(Dns.GetHostEntry(HostName).AddressList[0], Port);
-                client.Connect(connection);
+            // This can fail if you give it an invalid address. In which case, the exception will propagate up.
+            var connection = new IPEndPoint(Dns.GetHostEntry(HostName).AddressList[0], Port);
+            client.Connect(connection);
 #else
-                await client.ConnectAsync(HostName, Port);
+            await client.ConnectAsync(HostName, Port);
 #endif
-            }
-            catch (SocketException)
-            {
-                // TODO: Raise disconnection event.
-#if DEBUG
-                throw;
-#endif
-            }
+            stream = client.GetStream();
 
             worker.IsBackground = true;
             worker.Start();

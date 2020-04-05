@@ -615,15 +615,6 @@ namespace Atlantis.Net.Irc
 
         protected virtual void WorkerCallback(object state)
         {
-            bool pass = false;
-            do {
-                if (!Connected) continue;
-
-                stream = client.GetStream();
-                pass = true;
-            }
-            while (!pass);
-
             OnPreRegister(); // Send registration data.
 
             // TODO: Accept a certificate parameter (read: properly) for sending to the IRC server.
