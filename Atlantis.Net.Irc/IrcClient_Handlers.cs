@@ -615,7 +615,14 @@ namespace Atlantis.Net.Irc
 
         protected virtual void WorkerCallback(object state)
         {
-            stream = client.GetStream();
+            bool pass = false;
+            do {
+                if (!Connected) continue;
+
+                stream = client.GetStream();
+                pass = true;
+            }
+            while (!pass);
 
             OnPreRegister(); // Send registration data.
 

@@ -1,9 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>netstandard1.4;net452</TargetFrameworks>
-    <Version>4.1.6</Version>
-    <AssemblyVersion>4.1.6</AssemblyVersion>
-    <FileVersion>4.1.6</FileVersion>
+    <Version>4.1.7</Version>
+    <AssemblyVersion>4.1.7</AssemblyVersion>
+    <FileVersion>4.1.7</FileVersion>
     <Description>Atlantis.Net.Irc is an implementation of the IRC RFC (not 100%) for my own purposes. It features a very fast IRC message parser, asynchronous message transmission, an event system, and a basic command system.</Description>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
