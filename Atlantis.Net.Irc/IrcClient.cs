@@ -1,327 +1,470 @@
-﻿// -----------------------------------------------------------------------------
-//  <copyright file="IrcClient.cs" company="Zack Loveless">
-//      Copyright (c) Zack Loveless.  All rights reserved.
-//  </copyright>
-// -----------------------------------------------------------------------------
+﻿using System.Text;
+using JetBrains.Annotations;
+using Microsoft.Extensions.Logging;
 
-namespace Atlantis.Net.Irc
+namespace Atlantis.Net.Irc;
+
+[PublicAPI]
+public class IrcClient
 {
-    using System;
-    using System.Collections.Concurrent;
-    using System.Collections.Generic;
-    using System.IO;
-    using System.Net;
-    using System.Net.Sockets;
-    using System.Text;
-    using System.Threading;
-    using System.Threading.Tasks;
+    public const string Version = "Atlantis.Net.Irc/5.0.0 (.NET 9.0)";
 
-    // RFC 1459: https://tools.ietf.org/html/rfc1459
+    public static readonly string[] SupportedCapabilities =
+        [IrcV3Capabilities.LabeledResponse];
 
-    public partial class IrcClient
+    private string _channelTypes;
+    
+    private readonly IrcClientConfiguration _config;
+    private readonly ILogger? _logger;
+    private IrcConnection _connection;
+    private readonly List<string> _requestedCapabilities = [];
+    private readonly List<string> _enabledCapabilities = [];
+    private readonly SemaphoreSlim _registrationLock = new(0, 1);
+    
+    private int _lastNumeric = -1;
+    private bool _serverFeatureEventFired;
+    
+    private readonly StringBuilder _motd = new();
+    private Dictionary<string, string> _serverFeatureSupport = new(StringComparer.OrdinalIgnoreCase);
+    
+    public IrcClient(IrcClientConfiguration config, ILogger? logger = null)
     {
-        #region Fields
-
-        private readonly IDictionary<string, Channel> _channels = new ConcurrentDictionary<string, Channel>();
-
-        private readonly SemaphoreSlim connectingLock = new SemaphoreSlim(0, 1);
-        private readonly SemaphoreSlim writingLock = new SemaphoreSlim(1, 1);
-
-        private readonly TcpClient client;
-        private readonly Thread worker;
-
-        private NetworkStream stream;
-        private StreamReader reader;
-        private bool requestShutdown;
-        private string _currentNick;
-
-        #endregion
-
-        #region Constructors
-
-        public IrcClient()
-        {
-            client = new TcpClient();
-            worker = new Thread(WorkerCallback);
-            Modes = new ModeCollection();
-
-            Encoding = Encoding.UTF8;
-
-            //ConnectionTimeOutEvent += OnTimeout;
-
-            QueueInterval = 1000;
-        }
-
-        public IrcClient(IrcConfiguration config)
-            : this()
-        {
-            Encoding = config.Encoding;
-            HostName = config.Host;
-            Ident = config.Ident;
-            Nick = config.Nick;
-            Password = config.Password;
-            Port = config.Port;
-            RealName = config.RealName;
-
-            if (config.SslEnabled)
-            {
-                Options |= ConnectOptions.Secure;
-            }
-        }
-
-        #endregion
-
-        #region Events
-
-        public event EventHandler ConnectionEstablishedEvent;
-        // TODO: Figure out whether we want to handle connect timeouts.
-        [Obsolete] public event EventHandler<TimeoutEventArgs> ConnectionTimeOutEvent;
-        public event EventHandler<CanExecuteCommandEventArgs> CanExecuteCommandEvent;
-        public event EventHandler<CommandExecuteEventArgs> CommandExecutedEvent;
-        public event EventHandler<MessageReceivedEventArgs> NoticeReceivedEvent;
-        public event EventHandler<MessageReceivedEventArgs> PrivmsgReceivedEvent;
-        public event EventHandler<RfcNumericReceivedEventArgs> RfcNumericReceivedEvent;
-        public event EventHandler<JoinPartEventArgs> JoinEvent;
-        public event EventHandler<ModeChangedEventArgs> ModeChangedEvent;
-        public event EventHandler<JoinPartEventArgs> PartEvent;
-        public event EventHandler<QuitEventArgs> QuitEvent;
-
-        #endregion
-
-        #region Properties
-
-        /// <summary>
-        /// Gets a value indicating whether the socket is connected to the IRC server.
-        /// </summary>
-        public bool Connected => client != null && client.Connected;
-
-        /// <summary>
-        ///		<para>Gets or sets a value indicating whether to enable ircv3 features with the IrcClient.</para>
-        ///		<para>Defaults to false.</para>
-        /// </summary>
-        public bool EnableV3 { get; set; } = false;
-
-        public Encoding Encoding { get; set; }
-
-        public bool FillListsOnJoin { get; set; }
-
-        /// <summary>
-        /// Gets or sets the host indicating the location of the IRC server.
-        /// </summary>
-        public string HostName { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value representing our user info on IRC.
-        /// </summary>
-        public string Ident { get; set; }
-
-        /// <summary>
-        /// Gets a value indicating whether the IrcClient has been initialized.
-        /// </summary>
-        public bool IsInitialized
-        {
-            get
-            {
-                bool ret = true;
-
-                if (string.IsNullOrEmpty(HostName)) ret = false;
-                else if (string.IsNullOrEmpty(Nick)) ret = false;
-
-                return ret;
-            }
-        }
-
-        /// <summary>
-        /// Gets a collection of modes set on the IrcClient.
-        /// </summary>
-        public ModeCollection Modes { get; private set; }
-
-        /// <summary>
-        /// Gets or sets the nick that represents us on the IRC server.
-        /// </summary>
-        public string Nick { get; set; }
-
-        /// <summary>
-        /// Gets or sets options for connecting to the IRC server.
-        /// </summary>
-        public ConnectOptions Options { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value representing the password used for connecting to the IRC server.
-        /// </summary>
-        public string Password { get; set; }
-
-        /// <summary>
-        /// Gets or sets the port for connecting to the IRC server.
-        /// </summary>
-        public int Port { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value indicating the interval, in milliseconds, the queue worker processes enqueued messages.
-        /// </summary>
-        public int QueueInterval { get; set; }
-
-        /// <summary>
-        /// Gets or sets the realname of ourself on the IRC server.
-        /// </summary>
-        public string RealName { get; set; }
-
-        #endregion
-
-        #region Methods
-
-        /// <summary>
-        /// Returns a channel from the internal collection of the IrcClient.
-        /// </summary>
-        /// <param name="channelName"></param>
-        /// <returns></returns>
-        /// <exception cref="T:Atlantis.Net.Irc.RfcException" />
-        public Channel GetChannel(string channelName)
-        {
-            Channel c;
-
-            lock (_channels)
-            {
-                if (_channels.TryGetValue(channelName, out c))
-                {
-                    return c;
-                }
-
-                if (info.ChannelLength > 0 && channelName.Length > info.ChannelLength)
-                { // Check if the channel length is greater than zero (whether we have it set) and whether the channel name specified conforms to that length.
-                    throw new RfcException(string.Format("The length of the channel {0} cannot exceed a length of {1} as provided by the IRC server.", channelName, info.ChannelLength));
-                }
-
-                c = new Channel(this, channelName);
-                _channels.Add(c.Name, c);
-            }
-
-            return c;
-        }
-
-        public void RemoveChannel(string channelName)
-        {
-            lock (_channels)
-            {
-                if (_channels.ContainsKey(channelName))
-                {
-                    _channels.Remove(channelName);
-                }
-            }
-        }
-
-        protected virtual void SetDefaultValues()
-        {
-            if (string.IsNullOrEmpty(Ident))
-            {
-                Ident = Nick.ToLower();
-            }
-
-            if (string.IsNullOrEmpty(RealName))
-            {
-                RealName = Nick;
-            }
-
-            if (Port == 0)
-            {
-                Port = 6667;
-            }
-        }
-
-        public async void SetNick(string newNick)
-        {
-            await Send("NICK {0}", newNick);
-            _currentNick = newNick;
-        }
-
-        /// <summary>
-        /// Sends the specified formatted message to the IRC server without waiting for the message queue.
-        /// </summary>
-        /// <param name="format"></param>
-        /// <param name="args"></param>
-        /// <returns></returns>
-        public async Task<bool> Send(string format, params object[] args)
-        {
-            if (!Connected)
-            {
-                return false;
-            }
-
-            await writingLock.WaitAsync();
-
-            try
-            {
-                var message = new StringBuilder();
-                message.AppendFormat(format, args).Append('\n');
-
-                byte[] buf = Encoding.GetBytes(message.ToString());
-
-                await stream.WriteAsync(buf, 0, buf.Length);
-                await stream.FlushAsync();
-
-                return true;
-            }
-            finally
-            {
-                writingLock.Release();
-            }
-        }
-
-        public async Task<bool> Start()
-        {
-            if (!IsInitialized)
-            {
-                return false;
-            }
-
-            SetDefaultValues();
-#if NET452
-            // This can fail if you give it an invalid address. In which case, the exception will propagate up.
-            var connection = new IPEndPoint(Dns.GetHostEntry(HostName).AddressList[0], Port);
-            client.Connect(connection);
-#else
-            await client.ConnectAsync(HostName, Port);
-#endif
-            stream = client.GetStream();
-
-            worker.IsBackground = true;
-            worker.Start();
-
-            await connectingLock.WaitAsync();
-            return true;
-        }
-
-        public async void Stop(string reason = null)
-        {
-            if (Connected)
-            {
-                requestShutdown = true;
-                if (string.IsNullOrEmpty(reason))
-                {
-                    await Send("QUIT");
-                }
-                else
-                {
-                    await Send("QUIT :{0}", reason);
-                }
-            }
-        }
-
-#endregion
+        _config = config;
+        _logger = logger;
+        _connection = new IrcConnection(OnConnect, OnStop, OnDataReceived, stream => stream.AuthenticateAsClient(HostName));
     }
 
-#region External type: RfcException
+    #region Properties
 
     /// <summary>
-    /// 
+    /// Gets or sets a value indicating whether to attempt registration with capabilities.
     /// </summary>
-    public class RfcException : Exception
+    public bool EnableV3 { get; set; }
+    
+    /// <inheritdoc cref="IrcConnection.HostName" />
+    public string HostName
     {
-        public RfcException(string message)
-            : base(message)
+        get => _connection.HostName;
+        set => _connection.HostName = value;
+    }
+    
+    /// <inheritdoc cref="IrcConnection.Port" />
+    public short Port
+    {
+        get => _connection.Port;
+        set => _connection.Port = value;
+    }
+    
+    /// <inheritdoc cref="IrcConnection.UseSsl" />
+    public bool UseSsl
+    {
+        get => _connection.UseSsl;
+        set => _connection.UseSsl = value;
+    }
+
+    #endregion
+
+    #region Events
+
+    /// <summary>
+    /// Event fired when an IRC client connection receives numeric RPL_WELCOME (001).
+    /// </summary>
+    public event EventHandler ConnectionEstablishedEvent;
+
+    /// <summary>
+    /// Raised when the client receives a CTCP event.
+    /// </summary>
+    public event EventHandler<CtcpReceivedEventArgs> CtcpReceivedEvent; 
+
+    /// <summary>
+    /// Event fired when the IRC connection receives an ERROR command.
+    /// </summary>
+    public event EventHandler<IrcErrorEventArgs> ErrorReceivedEvent;
+    
+    /// <summary>
+    /// Raised when the client notices a PRIVMSG to a channel.
+    /// </summary>
+    public event EventHandler<MessageReceivedEventArgs> ChannelMessageReceivedEvent;
+        
+    /// <summary>
+    /// Raised when the client receives a notice from the server to which its connected. 
+    /// </summary>
+    public event EventHandler<MessageReceivedEventArgs> ServerNoticeReceivedEvent;
+    
+    /// <summary>
+    /// Raised when the client receives a PRIVMSG from another user.
+    /// </summary>
+    public event EventHandler<MessageReceivedEventArgs> PrivateMessageReceivedEvent; 
+
+    /// <summary>
+    /// Event fired at the end of the MOTD transmission.
+    /// </summary>
+    public event EventHandler<MotdEventArgs> MotdReceivedEvent;
+
+    /// <summary>
+    /// Event fired after the last RPL_ISUPPORT (005) line received. Multiple lines buffered into a single event fire.
+    /// </summary>
+    public event EventHandler<ServerFeaturesReceivedEventArgs> ServerFeaturesReceivedEvent;
+
+    #endregion
+
+    #region Methods
+    
+    /// <summary>
+    /// Appends the specified capability
+    /// </summary>
+    /// <param name="cap"></param>
+    /// <exception cref="ArgumentException"></exception>
+    public void RequestCapability(string cap) 
+    {
+        if (!SupportedCapabilities.Contains(cap, StringComparer.OrdinalIgnoreCase))
         {
+            throw new ArgumentException("The specified capability is not supported by the IRC client.", nameof(cap));
+        }
+        
+        // Only add it once
+        if (!_requestedCapabilities.Contains(cap, StringComparer.OrdinalIgnoreCase))
+        {
+            _requestedCapabilities.Add(cap);
+        }
+    }
+    
+    /// <summary>
+    /// Returns a value whether or not the specified target is a channel name or not.
+    /// </summary>
+    /// <param name="target"></param>
+    /// <returns></returns>
+    private bool IsChannelName(string target)
+    {
+        return _channelTypes.Any(target.StartsWith);
+    }
+
+    /// <inheritdoc cref="IrcConnection.Start" />
+    public Task<bool> Start() => _connection.Start();
+
+    /// <inheritdoc cref="IrcConnection.Stop" />
+    public Task<bool> Stop(string? reason = null) => _connection.Stop(reason ?? "Exiting");
+
+    /// <inheritdoc cref="IrcConnection.Send" />
+    public bool Send(string format, params object[] args) => _connection.Send(format, args);
+    
+    /// <inheritdoc cref="IrcConnection.SendAsync" />
+    public Task<bool> SendAsync(string format, params object[] args) => _connection.SendAsync(format, args);
+
+    #endregion
+
+    #region Handlers and Callbacks
+
+    protected virtual void OnConnect() 
+    {
+        if (!string.IsNullOrEmpty(_config.Password))
+        {
+            _connection.Send($"PASS {_config.Password}");
+        }
+        
+        // TODO: Support IRCv3 CAP negotiation for servers that require it for security.
+        // i.e., irc.cncirc.net (shameless plug).
+
+        _connection.Send($"USER {_config.Ident} 0 * :{_config.RealName}");
+        _connection.Send($"NICK {_config.Nick}");
+
+        if (!EnableV3)
+        {
+            _registrationLock.Release();
+            return;
+        }
+        
+        _connection.Send("CAP LS 302");
+        _registrationLock.Wait();
+    }
+    
+    protected virtual async Task<bool> OnStop(string? reason = null)
+    {
+        reason = reason == null ? string.Empty : string.Concat(" :", reason);
+        await _connection.SendAsync($"QUIT {reason}");
+        return true;
+    }
+    
+    protected virtual void OnDataReceived(string data) 
+    {
+        if (data.StartsWith("PING", StringComparison.OrdinalIgnoreCase))
+        {
+            var response = data.Substring(data.IndexOf(':') + 1);
+            _connection.Send("PONG {0}", response);
+            
+            // Early exit. We've already responded to PING
+            // so we don't need to process anymore!
+            return;
+        }
+        
+        string? prefix = null;
+        string? trailing = null;
+        
+        var prefixEnd = -1;
+        var trailingStart = -1;
+        
+        if (data.StartsWith(':'))
+        {
+            prefixEnd = data.IndexOf(' ');
+            prefix = data.Substring(1, prefixEnd - 1);
+        }
+
+        trailingStart = data.IndexOf(" :", StringComparison.Ordinal);
+        if (trailingStart != -1)
+        {
+            trailing = data.Substring(trailingStart + 2);
+        }
+
+        var commandSeq = data.Substring(prefixEnd + 1, (trailingStart == -1 ? data.Length : trailingStart) - (prefixEnd+1));
+        var parts = commandSeq.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        
+        if (parts.Length == 0)
+        {
+            Console.WriteLine($"*** Invalid data received!\n<- {data}");
+            _logger?.LogDebug($"*** Invalid data received! {data}");
+            return;
+        }
+        
+        var command = parts[0];
+        var commandParams = parts.Skip(1).ToArray();
+
+        var numeric = -1;
+        if (int.TryParse(command, out numeric))
+        {
+            OnIrcNumeric(numeric, prefix, trailing, commandParams);
+        }
+        else if (command.Equals("CAP", StringComparison.OrdinalIgnoreCase) && _registrationLock.CurrentCount == 0)
+        {
+            var subCommand = commandParams[1];
+            if (subCommand.Equals("LS", StringComparison.OrdinalIgnoreCase)) 
+            {
+                // We're waiting for registration to complete, so this is a priority response.
+                if (_requestedCapabilities.Count != 0 && SupportedCapabilities.Length != 0)
+                {
+                    var availableCaps = trailing!.Split(' ').ToArray();
+                    // First get a list of capabilities that we can request and are available
+                    var req = _requestedCapabilities.Intersect(availableCaps).ToArray();
+                
+                    // Then filter that list by a list of supported capabilities.
+                    var supported = SupportedCapabilities.Intersect(req).ToArray();
+                    
+                    _enabledCapabilities.AddRange(supported);
+                    _connection.Send($"CAP REQ :{string.Join(' ', supported)}");
+                }
+            }
+            else if (subCommand.Equals("ACK", StringComparison.OrdinalIgnoreCase))
+            {
+                var confirmedCaps = trailing!.Split(' ');
+                _enabledCapabilities.AddRange(confirmedCaps);
+                _connection.Send("CAP END");
+                _registrationLock.Release();
+            }
+            else if (subCommand.Equals("NAK", StringComparison.OrdinalIgnoreCase))
+            {
+                // We shouldn't have to worry about NAK's if the above code works fine, but I guess better safe than sorry.
+                // I guess, if we can't use one or more capabilities, we're done here and can send CAP END.
+                // 
+                // This is because the specification isn't required to enumerate the bad 
+
+                _connection.Send("CAP END");
+                _registrationLock.Release();
+
+                OnError($"Unable to request the following capabilities: {trailing}");
+            }
+        }
+        else if (command.Equals("ERROR", StringComparison.OrdinalIgnoreCase))
+        {
+            OnError(trailing);
+        }
+        else
+        {
+            OnCommand(command, prefix, trailing, commandParams);
+        }
+    }
+    
+    protected virtual void OnCommand(string command, string prefix, string trailing, string[] commandParams) 
+    {
+        if (command.Equals("PRIVMSG", StringComparison.OrdinalIgnoreCase)
+            && trailing.StartsWith('\x01') && trailing.EndsWith('\x01'))
+        {
+            OnCtcpReceived(prefix, trailing.Trim('\x01').ToLower());
+        }
+        else if (command.Equals("PRIVMSG", StringComparison.OrdinalIgnoreCase))
+        {
+            var target = commandParams[0];
+            if (IsChannelName(target))
+            {
+                OnChannelMessageReceived(prefix, target, trailing);
+            }
+            else
+            {
+                OnPrivateMessageReceived(prefix, trailing);
+            }
+        }
+        else if (command.Equals("NOTICE", StringComparison.OrdinalIgnoreCase))
+        {
+            // TODO: Handle CTCP replies eventually.
+            // Ignore CTCP replies FOR NOW.
+            if (trailing.StartsWith('\x01') && trailing.EndsWith('\x01')) return;
+            if (!prefix.Contains('!'))
+            {
+                OnServerNoticeReceived(prefix, trailing);
+                return;
+            }
+
+            var target = commandParams[0];
+            if (IsChannelName(target))
+            {
+                OnChannelMessageReceived(prefix, target, trailing, notice: true);
+            }
+            else
+            {
+                OnPrivateMessageReceived(prefix, trailing, notice: true);
+            }
+        }
+        else
+        {
+            Console.WriteLine($"<- ({prefix}) {command} [{string.Join(", ", commandParams)}] ({trailing})");
+        }
+    }
+    
+    protected virtual void OnConnectionEstablished()
+    {
+        ConnectionEstablishedEvent?.Invoke(this, EventArgs.Empty);
+    }
+
+    protected virtual void OnChannelMessageReceived(string prefix, string channel, string message, bool notice = false)
+    {
+        ChannelMessageReceivedEvent?.Invoke(this, new MessageReceivedEventArgs(message, prefix, channel, notice));
+    }
+    
+    protected virtual void OnCtcpReceived(string prefix, string ctcpEvent)
+    {
+        // Filter out DCC requests.
+        if (ctcpEvent.StartsWith("DCC", StringComparison.OrdinalIgnoreCase)) return;
+
+        var source = IrcSource.FromPrefix(prefix);
+        var ctcpParams = string.Empty; 
+        
+        if (ctcpEvent.Contains(' '))
+        {
+            ctcpParams = ctcpEvent.Substring(ctcpEvent.IndexOf(' ') + 1);
+            ctcpEvent = ctcpEvent.Substring(0, ctcpEvent.IndexOf(' '));
+        }
+
+        if (!Enum.TryParse(ctcpEvent, true, out CtcpEvent ctcp))
+        {
+            _logger?.LogDebug($"Unrecognized CTCP event? {ctcpEvent} (from {prefix})");
+            return;
+        }
+        
+        var args = new CtcpReceivedEventArgs(prefix, ctcp);
+        CtcpReceivedEvent?.Invoke(this, args);
+        if (args.Cancel) return;
+        
+        var response = string.Empty;
+        switch(ctcp) 
+        {
+            case CtcpEvent.Finger:
+                response = "Buy me dinner first...";
+                break;
+            case CtcpEvent.Ping:
+                response = ctcpParams;
+                break;
+            case CtcpEvent.Time:
+                response = DateTime.Now.ToString("ddd MMM dd HH:mm:ss yyyy");
+                break;
+            case CtcpEvent.Version:
+            default:
+                response = Version;
+                break;
+        }
+
+        _connection.Send($"NOTICE {source} :\x01{ctcp.ToString().ToUpper()} {response}\x01");
+    }
+    
+    protected virtual void OnError(string message)
+    {
+        ErrorReceivedEvent?.Invoke(this, new IrcErrorEventArgs(message));
+    }
+    
+    protected virtual void OnIrcNumeric(int numeric, string prefix, string trailing, string[] parameters)
+    {
+        // ReSharper disable once ConvertIfStatementToSwitchStatement
+        if (numeric == 1) 
+        {
+            OnConnectionEstablished();
+        }
+        else if (numeric == 372) // MOTD
+        {
+            _motd.AppendLine(trailing);
+        }
+        else if (numeric == 376) // End of MOTD
+        {
+            OnMotdReceived(_motd.ToString());
+            _motd.Clear();
+        }
+        else if (numeric == 005)
+        {
+            //   Skip the client name, then split the parameters into key value pairs,
+            // setting singular values as keys with empty values.
+            var serverSettings = parameters.Skip(1)
+                                           .Select(item => item.Split('=', count: 2))
+                                           .ToDictionary(item => item[0],
+                                               item => item.Length > 1 ? item[1] : string.Empty);
+                
+            // Reassign and merge the server features dictionary with the updated list we just received. 
+            _serverFeatureSupport = _serverFeatureSupport.Concat(serverSettings)
+                                                         .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+        }
+        else if (_lastNumeric == 005 && !_serverFeatureEventFired)
+        {
+            // We're starting to receive new lines, so fire off ISUPPORT.
+            HandleReplyISupportReceived();
+        }
+        else
+        {
+            var source = IrcSource.FromPrefix(prefix);
+            var paramList = string.Join(", ", parameters);
+            _logger?.LogDebug($"<- {numeric:000} ({source}) ({paramList}): {trailing}");
+        }
+            
+        _lastNumeric = numeric;
+    }
+    
+    protected virtual void OnMotdReceived(string motd) 
+    {
+        MotdReceivedEvent?.Invoke(this, new MotdEventArgs(motd));
+    }
+    
+    protected virtual void OnPrivateMessageReceived(string prefix, string message, bool notice = false) 
+    {
+        PrivateMessageReceivedEvent?.Invoke(this, new MessageReceivedEventArgs(message, prefix, notice));
+    }
+
+    protected virtual void HandleReplyISupportReceived()
+    {
+        // Fire the event
+        OnServerFeaturesReceived(_serverFeatureSupport);
+        _serverFeatureEventFired = true;
+
+        // TODO: Actually process what we need out of this here before deleting it.
+        // Process RPL_ISUPPORT for our needs here
+        if (_serverFeatureSupport.TryGetValue("CHANTYPES", out var channelTypes))
+        {
+            _channelTypes = channelTypes;
         }
     }
 
-#endregion
+    protected virtual void OnServerFeaturesReceived(IDictionary<string, string> serverFeatures)
+    {
+        ServerFeaturesReceivedEvent?.Invoke(this, new ServerFeaturesReceivedEventArgs(serverFeatures));
+    }
+    
+    protected virtual void OnServerNoticeReceived(string source, string message)
+    {
+        ServerNoticeReceivedEvent?.Invoke(this, new MessageReceivedEventArgs(message, source, notice: true));
+    }
+
+    #endregion
 }
