@@ -1,4 +1,4 @@
-﻿namespace Atlantis.Net.Irc;
+﻿namespace Atlantis.Net.Irc.Events;
 
 public class MotdEventArgs: EventArgs 
 {

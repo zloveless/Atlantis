@@ -1,6 +1,6 @@
 ﻿using JetBrains.Annotations;
 
-namespace Atlantis.Net.Irc;
+namespace Atlantis.Net.Irc.Events;
 
 [PublicAPI]
 public enum CtcpEvent 

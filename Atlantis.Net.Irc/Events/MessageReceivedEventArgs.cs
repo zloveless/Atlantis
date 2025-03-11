@@ -1,6 +1,6 @@
 ﻿using JetBrains.Annotations;
 
-namespace Atlantis.Net.Irc;
+namespace Atlantis.Net.Irc.Events;
 
 /// <summary>
 /// Represents a message received.

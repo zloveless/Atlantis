@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Atlantis.Net.Irc.Events;
 using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
 

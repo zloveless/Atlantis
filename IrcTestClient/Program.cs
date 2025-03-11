@@ -1,4 +1,5 @@
 ﻿using Atlantis.Net.Irc;
+using Newtonsoft.Json;
 
 var config = IrcClientConfiguration.New("GTestClient");
 var client = new IrcClient(config)
@@ -58,7 +59,7 @@ client.PrivateMessageReceivedEvent += (sender, e) =>
 
 client.CtcpReceivedEvent += (sender, e) =>
 {
-    Console.WriteLine($"Received CTCP ({e.Event}) from {e.Source}");
+    // Console.WriteLine($"Received CTCP ({e.Event}) from {e.Source}");
 };
 
 client.MotdReceivedEvent += (sender, e) =>
@@ -68,13 +69,13 @@ client.MotdReceivedEvent += (sender, e) =>
 
 client.ServerNoticeReceivedEvent += (sender, e) =>
 {
-    Console.WriteLine($"SNOTICE({e.Source}): {e.Message}");
+    // Console.WriteLine($"SNOTICE({e.Source}): {e.Message}");
 };
 
-/*client.ServerFeaturesReceivedEvent += (sender, e) =>
+client.ServerFeaturesReceivedEvent += (sender, e) =>
 {
-    Console.WriteLine($"Received RPL_ISUPPORT: {JsonConvert.SerializeObject(e.ServerFeatures)}");
-};*/
+    // Console.WriteLine($"Received RPL_ISUPPORT: {JsonConvert.SerializeObject(e.ServerFeatures)}");
+};
 
 client.ErrorReceivedEvent += (sender, e) =>
 {

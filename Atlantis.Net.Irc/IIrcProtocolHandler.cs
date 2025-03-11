@@ -1,4 +1,5 @@
-﻿using JetBrains.Annotations;
+﻿using Atlantis.Net.Irc.Events;
+using JetBrains.Annotations;
 
 namespace Atlantis.Net.Irc;
 
