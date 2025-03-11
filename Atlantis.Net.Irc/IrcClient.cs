@@ -10,7 +10,10 @@ public class IrcClient
     public const string Version = "Atlantis.Net.Irc/5.0.0 (.NET 9.0)";
 
     public static readonly string[] SupportedCapabilities =
-        [IrcV3Capabilities.LabeledResponse];
+    [
+        IrcV3Capabilities.EchoMessage,
+        IrcV3Capabilities.MessageTags
+    ];
 
     private string _channelTypes;
     
@@ -65,6 +68,11 @@ public class IrcClient
     #endregion
 
     #region Events
+
+    /// <summary>
+    /// Raised when CAP negotiation responds with an ACK message, confirming the requested capabilities.
+    /// </summary>
+    public event EventHandler<CapAckReceivedEventArgs> CapAckReceivedEvent; 
 
     /// <summary>
     /// Event fired when an IRC client connection receives numeric RPL_WELCOME (001).
@@ -202,6 +210,20 @@ public class IrcClient
         
         var prefixEnd = -1;
         var trailingStart = -1;
+        var tags = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        
+        if (data.StartsWith('@'))
+        {
+            var nextToken = data.IndexOf(' ');
+            var kvp = data.Substring(1, nextToken);
+            var dict = kvp.Split(';').Select(item => item.Split('=', count: 2))
+                          .ToDictionary(k => k[0], v => v.Length > 1 ? v[1] : string.Empty);
+            
+            tags = tags.Concat(dict).ToDictionary();
+            
+            // Reset the incoming data so we don't have to modify the parsing code below.
+            data = data.Substring(nextToken + 1);
+        }
         
         if (data.StartsWith(':'))
         {
@@ -215,12 +237,11 @@ public class IrcClient
             trailing = data.Substring(trailingStart + 2);
         }
 
-        var commandSeq = data.Substring(prefixEnd + 1, (trailingStart == -1 ? data.Length : trailingStart) - (prefixEnd+1));
+        var commandSeq = data.Substring(prefixEnd + 1, (trailingStart == -1 ? data.Length : trailingStart) - (prefixEnd + 1));
         var parts = commandSeq.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         
         if (parts.Length == 0)
         {
-            Console.WriteLine($"*** Invalid data received!\n<- {data}");
             _logger?.LogDebug($"*** Invalid data received! {data}");
             return;
         }
@@ -231,7 +252,7 @@ public class IrcClient
         var numeric = -1;
         if (int.TryParse(command, out numeric))
         {
-            OnIrcNumeric(numeric, prefix, trailing, commandParams);
+            OnIrcNumeric(numeric, prefix, trailing, commandParams, tags);
         }
         else if (command.Equals("CAP", StringComparison.OrdinalIgnoreCase) && _registrationLock.CurrentCount == 0)
         {
@@ -247,8 +268,6 @@ public class IrcClient
                 
                     // Then filter that list by a list of supported capabilities.
                     var supported = SupportedCapabilities.Intersect(req).ToArray();
-                    
-                    _enabledCapabilities.AddRange(supported);
                     _connection.Send($"CAP REQ :{string.Join(' ', supported)}");
                 }
             }
@@ -256,6 +275,7 @@ public class IrcClient
             {
                 var confirmedCaps = trailing!.Split(' ');
                 _enabledCapabilities.AddRange(confirmedCaps);
+                CapAckReceivedEvent?.Invoke(this, new CapAckReceivedEventArgs(_enabledCapabilities.ToArray()));
                 _connection.Send("CAP END");
                 _registrationLock.Release();
             }
@@ -278,11 +298,11 @@ public class IrcClient
         }
         else
         {
-            OnCommand(command, prefix, trailing, commandParams);
+            OnCommand(command, prefix, trailing, commandParams, tags);
         }
     }
     
-    protected virtual void OnCommand(string command, string prefix, string trailing, string[] commandParams) 
+    protected virtual void OnCommand(string command, string prefix, string trailing, string[] commandParams, IDictionary<string, string> tags) 
     {
         if (command.Equals("PRIVMSG", StringComparison.OrdinalIgnoreCase)
             && trailing.StartsWith('\x01') && trailing.EndsWith('\x01'))
@@ -388,7 +408,7 @@ public class IrcClient
         ErrorReceivedEvent?.Invoke(this, new IrcErrorEventArgs(message));
     }
     
-    protected virtual void OnIrcNumeric(int numeric, string prefix, string trailing, string[] parameters)
+    protected virtual void OnIrcNumeric(int numeric, string prefix, string trailing, string[] parameters, IDictionary<string, string> tags)
     {
         // ReSharper disable once ConvertIfStatementToSwitchStatement
         if (numeric == 1) 

@@ -9,11 +9,18 @@ var client = new IrcClient(config)
 };
 
 client.EnableV3 = true;
-client.RequestCapability(IrcV3Capabilities.LabeledResponse);
+client.RequestCapability(IrcV3Capabilities.EchoMessage);
+client.RequestCapability(IrcV3Capabilities.MessageTags);
+
+client.CapAckReceivedEvent += (sender, e) =>
+{
+    //Console.WriteLine($"*** Received CAP ACK with the following capabilities: {string.Join(", ", e.Capabilities)}");
+};
 
 client.ConnectionEstablishedEvent += (sender, e) => 
 {
     Console.WriteLine("Connected to IRC!");
+    client.Send("JOIN #neopub");
 };
 
 client.ChannelMessageReceivedEvent += (sender, e) =>
@@ -22,11 +29,16 @@ client.ChannelMessageReceivedEvent += (sender, e) =>
     // ReSharper disable once ConvertIfStatementToConditionalTernaryExpression
     if (e.IsNotice)
     {
-        Console.WriteLine($"NOTICE({e.Target}) from {source}: {e.Message}");
+        Console.WriteLine($"NOTICE({e.Target}, {e.Tags?.Count ?? 0}) from {source}: {e.Message}");
     }
     else
     {
-        Console.WriteLine($"MESSAGE({e.Target}) from {source}: {e.Message}");
+        Console.WriteLine($"MESSAGE({e.Target}, {e.Tags?.Count ?? 0}) from {source}: {e.Message}");
+    }
+    
+    if (!e.IsNotice && e.Message.StartsWith("!hello")) 
+    {
+        client.Send("PRIVMSG #neopub :Hello world");
     }
 };
 
@@ -36,11 +48,11 @@ client.PrivateMessageReceivedEvent += (sender, e) =>
     // ReSharper disable once ConvertIfStatementToConditionalTernaryExpression
     if (e.IsNotice)
     {
-        Console.WriteLine($"NOTICE({source}): {e.Message}");
+        Console.WriteLine($"NOTICE({source}, {e.Tags?.Count ?? 0}): {e.Message}");
     }
     else
     {
-        Console.WriteLine($"MESSAGE({source}): {e.Message}");
+        Console.WriteLine($"MESSAGE({source}, {e.Tags?.Count ?? 0}): {e.Message}");
     }
 };
 
@@ -51,7 +63,7 @@ client.CtcpReceivedEvent += (sender, e) =>
 
 client.MotdReceivedEvent += (sender, e) =>
 {
-    Console.WriteLine($"Received MOTD: Length = {e.Motd.Length}");
+    // Console.WriteLine($"Received MOTD: Length = {e.Motd.Length}");
 };
 
 client.ServerNoticeReceivedEvent += (sender, e) =>
