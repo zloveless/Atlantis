@@ -315,11 +315,11 @@ public class IrcClient
             var target = commandParams[0];
             if (IsChannelName(target))
             {
-                OnChannelMessageReceived(prefix, target, trailing);
+                OnChannelMessageReceived(prefix, target, trailing, false, tags);
             }
             else
             {
-                OnPrivateMessageReceived(prefix, trailing);
+                OnPrivateMessageReceived(prefix, trailing, false, tags);
             }
         }
         else if (command.Equals("NOTICE", StringComparison.OrdinalIgnoreCase))
@@ -336,11 +336,11 @@ public class IrcClient
             var target = commandParams[0];
             if (IsChannelName(target))
             {
-                OnChannelMessageReceived(prefix, target, trailing, notice: true);
+                OnChannelMessageReceived(prefix, target, trailing, notice: true, tags);
             }
             else
             {
-                OnPrivateMessageReceived(prefix, trailing, notice: true);
+                OnPrivateMessageReceived(prefix, trailing, notice: true, tags);
             }
         }
         else
@@ -354,9 +354,9 @@ public class IrcClient
         ConnectionEstablishedEvent?.Invoke(this, EventArgs.Empty);
     }
 
-    protected virtual void OnChannelMessageReceived(string prefix, string channel, string message, bool notice = false)
+    protected virtual void OnChannelMessageReceived(string prefix, string channel, string message, bool notice = false, IDictionary<string, string>? tags = null)
     {
-        ChannelMessageReceivedEvent?.Invoke(this, new MessageReceivedEventArgs(message, prefix, channel, notice));
+        ChannelMessageReceivedEvent?.Invoke(this, new MessageReceivedEventArgs(message, prefix, channel, notice, tags));
     }
     
     protected virtual void OnCtcpReceived(string prefix, string ctcpEvent)
@@ -458,9 +458,9 @@ public class IrcClient
         MotdReceivedEvent?.Invoke(this, new MotdEventArgs(motd));
     }
     
-    protected virtual void OnPrivateMessageReceived(string prefix, string message, bool notice = false) 
+    protected virtual void OnPrivateMessageReceived(string prefix, string message, bool notice = false, IDictionary<string, string>? tags = null) 
     {
-        PrivateMessageReceivedEvent?.Invoke(this, new MessageReceivedEventArgs(message, prefix, notice));
+        PrivateMessageReceivedEvent?.Invoke(this, new MessageReceivedEventArgs(message, prefix, notice, tags));
     }
 
     protected virtual void HandleReplyISupportReceived()
