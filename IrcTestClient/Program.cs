@@ -1,5 +1,4 @@
 ﻿using Atlantis.Net.Irc;
-using Newtonsoft.Json;
 
 var config = IrcClientConfiguration.New("GTestClient");
 var client = new IrcClient(config)
@@ -10,9 +9,6 @@ var client = new IrcClient(config)
 };
 
 client.EnableV3 = true;
-client.RequestCapability(IrcV3Capabilities.EchoMessage);
-client.RequestCapability(IrcV3Capabilities.MessageTags);
-
 client.CapAckReceivedEvent += (sender, e) =>
 {
     //Console.WriteLine($"*** Received CAP ACK with the following capabilities: {string.Join(", ", e.Capabilities)}");
@@ -39,13 +35,18 @@ client.ChannelMessageReceivedEvent += (sender, e) =>
     
     if (!e.IsNotice && e.Message.StartsWith("!hello")) 
     {
-        client.Send("PRIVMSG #neopub :Hello world");
+        client.Send($"PRIVMSG {e.Target} :Hello world");
+    }
+    else if (!e.IsNotice && e.Message.StartsWith("!modes"))
+    {
+        var modes = client.GetChannelUserModes(e.Target, e.Source);
+        client.Send($"PRIVMSG {e.Target} :Hello {source.Nick}, your mode(s) for {e.Target} are: {modes}");
     }
 };
 
 client.PrivateMessageReceivedEvent += (sender, e) =>
 {
-    var source = IrcSource.FromPrefix(e.Source);
+    /*var source = IrcSource.FromPrefix(e.Source);
     // ReSharper disable once ConvertIfStatementToConditionalTernaryExpression
     if (e.IsNotice)
     {
@@ -54,7 +55,7 @@ client.PrivateMessageReceivedEvent += (sender, e) =>
     else
     {
         Console.WriteLine($"MESSAGE({source}, {e.Tags?.Count ?? 0}): {e.Message}");
-    }
+    }*/
 };
 
 client.CtcpReceivedEvent += (sender, e) =>

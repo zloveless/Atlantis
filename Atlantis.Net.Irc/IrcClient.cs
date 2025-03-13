@@ -2,6 +2,7 @@
 using Atlantis.Net.Irc.Events;
 using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 
 namespace Atlantis.Net.Irc;
 
@@ -9,19 +10,27 @@ namespace Atlantis.Net.Irc;
 public class IrcClient
 {
     public const string Version = "Atlantis.Net.Irc/5.0.0 (.NET 9.0)";
-
-    public static readonly string[] SupportedCapabilities =
+    
+    /// <summary>
+    /// Returns a set of capabilities that the <see cref="IrcClient" /> supports and expects.
+    /// </summary>
+    private static readonly List<string> RequestedCapabilities =
     [
-        IrcV3Capabilities.EchoMessage,
-        IrcV3Capabilities.MessageTags
+        IrcV3Capabilities.MessageTags,
+        //IrcV3Capabilities.MultiPrefix,
+        IrcV3Capabilities.UserHostInNames
     ];
-
+    
     private string _channelTypes;
+    private string _prefixSymbols;
+    private string _prefixModes;
     
     private readonly IrcClientConfiguration _config;
     private readonly ILogger? _logger;
     private IrcConnection _connection;
-    private readonly List<string> _requestedCapabilities = [];
+
+    private readonly Dictionary<string, List<ChannelUser>> _channelUsers = new(StringComparer.OrdinalIgnoreCase);
+    
     private readonly List<string> _enabledCapabilities = [];
     private readonly SemaphoreSlim _registrationLock = new(0, 1);
     
@@ -119,25 +128,21 @@ public class IrcClient
 
     #region Methods
     
-    /// <summary>
-    /// Appends the specified capability
-    /// </summary>
-    /// <param name="cap"></param>
-    /// <exception cref="ArgumentException"></exception>
-    public void RequestCapability(string cap) 
+    private void AddUserToChannel(string channel, ChannelUser user)
     {
-        if (!SupportedCapabilities.Contains(cap, StringComparer.OrdinalIgnoreCase))
+        if (_channelUsers.TryGetValue(channel, out var channelUsers))
         {
-            throw new ArgumentException("The specified capability is not supported by the IRC client.", nameof(cap));
+            channelUsers.Add(user);
         }
-        
-        // Only add it once
-        if (!_requestedCapabilities.Contains(cap, StringComparer.OrdinalIgnoreCase))
+        else
         {
-            _requestedCapabilities.Add(cap);
+            _channelUsers[channel] =
+            [
+                user
+            ];
         }
     }
-    
+        
     /// <summary>
     /// Returns a value whether or not the specified target is a channel name or not.
     /// </summary>
@@ -146,6 +151,40 @@ public class IrcClient
     private bool IsChannelName(string target)
     {
         return _channelTypes.Any(target.StartsWith);
+    }
+
+    /// <summary>
+    /// Gets a user's channel modes for the specified channel.
+    /// </summary>
+    /// <param name="channel"></param>
+    /// <param name="userPrefix"></param>
+    /// <exception cref="ArgumentNullException"></exception>
+    /// <exception cref="ArgumentOutOfRangeException"></exception>
+    /// <returns></returns>
+    public string GetChannelUserModes(string channel, string userPrefix) 
+    {
+        if (string.IsNullOrEmpty(channel))
+        {
+            throw new ArgumentNullException(nameof(channel));
+        }
+        
+        if (string.IsNullOrEmpty(userPrefix))
+        {
+            throw new ArgumentNullException(nameof(userPrefix));
+        }
+        
+        if (!_channelUsers.ContainsKey(channel))
+        {
+            throw new ArgumentOutOfRangeException(nameof(channel));
+        }
+        
+        if (_channelUsers.TryGetValue(channel, out var channelUsers))
+        {
+            return channelUsers
+                   .FirstOrDefault(cu => cu.User.Equals(userPrefix, StringComparison.OrdinalIgnoreCase))?.Modes ?? string.Empty;
+        }
+
+        return string.Empty;
     }
 
     /// <inheritdoc cref="IrcConnection.Start" />
@@ -220,7 +259,13 @@ public class IrcClient
             var dict = kvp.Split(';').Select(item => item.Split('=', count: 2))
                           .ToDictionary(k => k[0], v => v.Length > 1 ? v[1] : string.Empty);
             
-            tags = tags.Concat(dict).ToDictionary();
+            foreach (var item in dict)
+            {
+                tags[item.Key] = item.Value;
+            }
+            
+            // free the memory, theoretically
+            dict.Clear();
             
             // Reset the incoming data so we don't have to modify the parsing code below.
             data = data.Substring(nextToken + 1);
@@ -258,19 +303,16 @@ public class IrcClient
         else if (command.Equals("CAP", StringComparison.OrdinalIgnoreCase) && _registrationLock.CurrentCount == 0)
         {
             var subCommand = commandParams[1];
-            if (subCommand.Equals("LS", StringComparison.OrdinalIgnoreCase)) 
+            if (subCommand.Equals("LS", StringComparison.OrdinalIgnoreCase))
             {
                 // We're waiting for registration to complete, so this is a priority response.
-                if (_requestedCapabilities.Count != 0 && SupportedCapabilities.Length != 0)
-                {
-                    var availableCaps = trailing!.Split(' ').ToArray();
-                    // First get a list of capabilities that we can request and are available
-                    var req = _requestedCapabilities.Intersect(availableCaps).ToArray();
+                if (RequestedCapabilities.Count == 0) return;
                 
-                    // Then filter that list by a list of supported capabilities.
-                    var supported = SupportedCapabilities.Intersect(req).ToArray();
-                    _connection.Send($"CAP REQ :{string.Join(' ', supported)}");
-                }
+                var availableCaps = trailing!.Split(' ').ToArray();
+                // First get a list of capabilities that we can request and are available
+                var req = RequestedCapabilities.Intersect(availableCaps).ToArray();
+                    
+                _connection.Send($"CAP REQ :{string.Join(' ', req)}");
             }
             else if (subCommand.Equals("ACK", StringComparison.OrdinalIgnoreCase))
             {
@@ -285,7 +327,7 @@ public class IrcClient
                 // We shouldn't have to worry about NAK's if the above code works fine, but I guess better safe than sorry.
                 // I guess, if we can't use one or more capabilities, we're done here and can send CAP END.
                 // 
-                // This is because the specification isn't required to enumerate the bad 
+                // This is because the specification isn't required to enumerate the bad.
 
                 _connection.Send("CAP END");
                 _registrationLock.Release();
@@ -416,6 +458,11 @@ public class IrcClient
         {
             OnConnectionEstablished();
         }
+        else if (numeric == 353)
+        {
+            var channel = parameters[2];
+            OnNamesReplyReceived(channel, trailing);
+        }
         else if (numeric == 372) // MOTD
         {
             _motd.AppendLine(trailing);
@@ -458,6 +505,30 @@ public class IrcClient
         MotdReceivedEvent?.Invoke(this, new MotdEventArgs(motd));
     }
     
+    protected virtual void OnNamesReplyReceived(string channel, string nickList)
+    {
+        var users = nickList.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var user in users)
+        {
+            var prefix = user[0];
+            string username;
+            
+            if (_prefixSymbols.Contains(prefix))
+            {
+                username = user.Substring(1);
+            }
+            else
+            {
+                username = user;
+                prefix = '\0';
+            }
+
+            AddUserToChannel(channel, new ChannelUser(username, prefix == '\0' ? string.Empty : prefix.ToString()));
+        }
+
+        Console.WriteLine($"*** NAMES PROCESSED({channel}): {JsonConvert.SerializeObject(_channelUsers)}");
+    }
+    
     protected virtual void OnPrivateMessageReceived(string prefix, string message, bool notice = false, IDictionary<string, string>? tags = null) 
     {
         PrivateMessageReceivedEvent?.Invoke(this, new MessageReceivedEventArgs(message, prefix, notice, tags));
@@ -474,6 +545,13 @@ public class IrcClient
         if (_serverFeatureSupport.TryGetValue("CHANTYPES", out var channelTypes))
         {
             _channelTypes = channelTypes;
+        }
+        
+        if (_serverFeatureSupport.TryGetValue("PREFIX", out var prefix))
+        {
+            var endModesToken = prefix.IndexOf(')');
+            _prefixModes = prefix.Substring(1, endModesToken - 1);
+            _prefixSymbols = prefix.Substring(endModesToken + 1);
         }
     }
 
