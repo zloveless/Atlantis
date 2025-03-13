@@ -168,11 +168,11 @@ public class IrcClient
     /// <summary>
     /// Gets a user's channel modes for the specified channel.
     /// </summary>
-    /// <param name="channel"></param>
-    /// <param name="userPrefix"></param>
-    /// <exception cref="ArgumentNullException"></exception>
-    /// <exception cref="ArgumentOutOfRangeException"></exception>
-    /// <returns></returns>
+    /// <param name="channel">The channel to look up a user's access level.</param>
+    /// <param name="userPrefix">The requested user's full prefix when looking up their access.</param>
+    /// <exception cref="ArgumentNullException">Thrown when either of the two arguments are invalid values such as null or empty strings.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when the specified channel does not exist in the <see cref="IrcClient" />'s internal channel registrar.</exception>
+    /// <returns>The user's mode prefixes</returns>
     public string GetChannelUserModes(string channel, string userPrefix) 
     {
         if (string.IsNullOrEmpty(channel))
