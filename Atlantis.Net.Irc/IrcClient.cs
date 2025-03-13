@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using System.Text.RegularExpressions;
 using Atlantis.Net.Irc.Events;
 using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
@@ -11,13 +12,15 @@ public class IrcClient
 {
     public const string Version = "Atlantis.Net.Irc/5.0.0 (.NET 9.0)";
     
+    private Regex _multiPrefixNames;
+    
     /// <summary>
     /// Returns a set of capabilities that the <see cref="IrcClient" /> supports and expects.
     /// </summary>
     private static readonly List<string> RequestedCapabilities =
     [
         IrcV3Capabilities.MessageTags,
-        //IrcV3Capabilities.MultiPrefix,
+        IrcV3Capabilities.MultiPrefix,
         IrcV3Capabilities.UserHostInNames
     ];
     
@@ -186,6 +189,16 @@ public class IrcClient
 
         return string.Empty;
     }
+    
+    /// <summary>
+    /// Returns whether or not the specified capability is supported by the current <see cref="IrcClient" />.
+    /// </summary>
+    /// <param name="capName"></param>
+    /// <returns></returns>
+    public bool SupportsCapability(string capName)
+    {
+        return EnableV3 && _enabledCapabilities.Contains(capName, StringComparer.OrdinalIgnoreCase);
+    }
 
     /// <inheritdoc cref="IrcConnection.Start" />
     public Task<bool> Start() => _connection.Start();
@@ -209,9 +222,6 @@ public class IrcClient
         {
             _connection.Send($"PASS {_config.Password}");
         }
-        
-        // TODO: Support IRCv3 CAP negotiation for servers that require it for security.
-        // i.e., irc.cncirc.net (shameless plug).
 
         _connection.Send($"USER {_config.Ident} 0 * :{_config.RealName}");
         _connection.Send($"NICK {_config.Nick}");
@@ -507,25 +517,37 @@ public class IrcClient
     
     protected virtual void OnNamesReplyReceived(string channel, string nickList)
     {
-        var users = nickList.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var user in users)
+        if (SupportsCapability(IrcV3Capabilities.MultiPrefix) && _multiPrefixNames != null)
         {
-            var prefix = user[0];
-            string username;
-            
-            if (_prefixSymbols.Contains(prefix))
+            var matches = _multiPrefixNames.Matches(nickList);
+            foreach (Match m in matches) 
             {
-                username = user.Substring(1);
+                // little magic strings - not pretty but works.
+                AddUserToChannel(channel, new ChannelUser(m.Groups["prefix"].ToString(), m.Groups["access"].ToString()));
             }
-            else
-            {
-                username = user;
-                prefix = '\0';
-            }
-
-            AddUserToChannel(channel, new ChannelUser(username, prefix == '\0' ? string.Empty : prefix.ToString()));
         }
+        else
+        {
+            var users = nickList.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var user in users)
+            {
+                var prefix = user[0];
+                string username;
 
+                if (_prefixSymbols.Contains(prefix))
+                {
+                    username = user.Substring(1);
+                }
+                else
+                {
+                    username = user;
+                    prefix = '\0';
+                }
+
+                AddUserToChannel(channel, new ChannelUser(username, prefix == '\0' ? string.Empty : prefix.ToString()));
+            }
+        }
+        
         Console.WriteLine($"*** NAMES PROCESSED({channel}): {JsonConvert.SerializeObject(_channelUsers)}");
     }
     
@@ -552,6 +574,11 @@ public class IrcClient
             var endModesToken = prefix.IndexOf(')');
             _prefixModes = prefix.Substring(1, endModesToken - 1);
             _prefixSymbols = prefix.Substring(endModesToken + 1);
+            
+            if (SupportsCapability(IrcV3Capabilities.MultiPrefix) && _multiPrefixNames == null)
+            {
+                _multiPrefixNames = new Regex(@$"(?<access>[{_prefixSymbols}]*)(?<prefix>\S+)", RegexOptions.Compiled);
+            }
         }
     }
 
