@@ -135,6 +135,15 @@ public class IrcClient
     {
         if (_channelUsers.TryGetValue(channel, out var channelUsers))
         {
+            var current =
+                channelUsers.FirstOrDefault(u => u.User.Equals(user.User, StringComparison.OrdinalIgnoreCase));
+            
+            // Remove and override since it's a C# 'record' type.
+            if (current != null)
+            {
+                channelUsers.Remove(current);
+            }
+            
             channelUsers.Add(user);
         }
         else
