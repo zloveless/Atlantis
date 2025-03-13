@@ -556,8 +556,6 @@ public class IrcClient
                 AddUserToChannel(channel, new ChannelUser(username, prefix == '\0' ? string.Empty : prefix.ToString()));
             }
         }
-        
-        Console.WriteLine($"*** NAMES PROCESSED({channel}): {JsonConvert.SerializeObject(_channelUsers)}");
     }
     
     protected virtual void OnPrivateMessageReceived(string prefix, string message, bool notice = false, IDictionary<string, string>? tags = null) 
