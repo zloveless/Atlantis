@@ -9,6 +9,8 @@ var client = new IrcClient(config)
 };
 
 client.EnableV3 = true;
+client.StrictNames = true;
+
 client.CapAckReceivedEvent += (sender, e) =>
 {
     //Console.WriteLine($"*** Received CAP ACK with the following capabilities: {string.Join(", ", e.Capabilities)}");
@@ -17,7 +19,7 @@ client.CapAckReceivedEvent += (sender, e) =>
 client.ConnectionEstablishedEvent += (sender, e) => 
 {
     Console.WriteLine("Connected to IRC!");
-    client.Send("JOIN #neopub");
+    client.Send("JOIN #genesis");
 };
 
 client.ChannelMessageReceivedEvent += (sender, e) =>
@@ -81,6 +83,16 @@ client.ServerFeaturesReceivedEvent += (sender, e) =>
 client.ErrorReceivedEvent += (sender, e) =>
 {
     Console.WriteLine($"ERROR: {e.Message}");
+};
+
+client.JoinEvent += (sender, e) =>
+{
+    Console.WriteLine($"JOIN({e.Channel}): {e.UserPrefix}");
+};
+
+client.PartEvent += (sender, e) =>
+{
+    Console.WriteLine($"PART({e.Channel}): {e.UserPrefix}");
 };
 
 await client.Start();

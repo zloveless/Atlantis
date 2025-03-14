@@ -77,6 +77,19 @@ public class IrcClient
         get => _connection.UseSsl;
         set => _connection.UseSsl = value;
     }
+    
+    /// <summary>
+    /// Gets or sets a value indicating whether to request NAMES {channel} whenever an action (i.e., join, part, mode, etc.) occurs to affect user access.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         For what it's worth, this property is mainly for testing and debugging the client during development when I do not have all commands being processed.
+    ///     </para>
+    ///     <para>
+    ///         This property may not survive in a full release of 5.0.0 of this library.
+    ///     </para> 
+    /// </remarks>
+    public bool StrictNames { get; set; }
 
     #endregion
 
@@ -121,6 +134,16 @@ public class IrcClient
     /// Event fired at the end of the MOTD transmission.
     /// </summary>
     public event EventHandler<MotdEventArgs> MotdReceivedEvent;
+
+    /// <summary>
+    /// Raised when a user joins a channel being monitored by the IrcClient.
+    /// </summary>
+    public event EventHandler<JoinPartEventArgs> JoinEvent;
+    
+    /// <summary>
+    /// Raised when a user leaves a channel being monitored by the IrcClient.
+    /// </summary>
+    public event EventHandler<JoinPartEventArgs> PartEvent; 
 
     /// <summary>
     /// Event fired after the last RPL_ISUPPORT (005) line received. Multiple lines buffered into a single event fire.
@@ -404,6 +427,14 @@ public class IrcClient
                 OnPrivateMessageReceived(prefix, trailing, notice: true, tags);
             }
         }
+        else if (command.Equals("JOIN", StringComparison.OrdinalIgnoreCase))
+        {
+            OnJoin(trailing, prefix);
+        }
+        else if (command.Equals("PART", StringComparison.OrdinalIgnoreCase))
+        {
+            OnPart(commandParams[0], prefix);
+        }
         else
         {
             Console.WriteLine($"<- ({prefix}) {command} [{string.Join(", ", commandParams)}] ({trailing})");
@@ -555,6 +586,76 @@ public class IrcClient
 
                 AddUserToChannel(channel, new ChannelUser(username, prefix == '\0' ? string.Empty : prefix.ToString()));
             }
+        }
+    }
+    
+    /// <summary>
+    /// Represents a core event handler that processes a user joining a channel the <see cref="IrcClient" /> monitors.
+    /// </summary>
+    /// <param name="channel"></param>
+    /// <param name="userPrefix"></param>
+    protected virtual void OnJoin(string channel, string userPrefix) 
+    {
+        if (_channelUsers.TryGetValue(channel, out var channelUsers))
+        {
+            var nick = userPrefix;
+            if (!SupportsCapability(IrcV3Capabilities.UserHostInNames))
+            {
+                nick = IrcSource.FromPrefix(userPrefix).Nick;
+            }
+
+            var current = channelUsers.FirstOrDefault(u => u.User.Equals(nick, StringComparison.OrdinalIgnoreCase));
+            if (current == null)
+            {
+                AddUserToChannel(channel, new ChannelUser(nick, string.Empty));
+            }
+        }
+        
+        JoinEvent?.Invoke(this, new JoinPartEventArgs(channel, userPrefix));
+
+        var isSelf = IrcSource.FromPrefix(userPrefix).Nick.Equals(_config.Nick, StringComparison.OrdinalIgnoreCase);
+        if (StrictNames || isSelf)
+        {
+            Send($"NAMES {channel}");
+        }
+    }
+    
+    /// <summary>
+    /// Represents a core event handler that processes a user leaving a channel the <see cref="IrcClient" /> monitors.
+    /// </summary>
+    /// <param name="channel"></param>
+    /// <param name="userPrefix"></param>
+    protected virtual void OnPart(string channel, string userPrefix) 
+    {
+        // Fire the event event regardless if it's us.
+        PartEvent?.Invoke(this, new JoinPartEventArgs(channel, userPrefix));
+        
+        var isSelf = IrcSource.FromPrefix(userPrefix).Nick.Equals(_config.Nick, StringComparison.OrdinalIgnoreCase);
+        if (isSelf)
+        {
+            // If this is us leaving a channel, just remove it.
+            _channelUsers.Remove(channel);
+            return;
+        }
+        
+        if (_channelUsers.TryGetValue(channel, out var channelUsers))
+        {
+            var nick = userPrefix;
+            if (!SupportsCapability(IrcV3Capabilities.UserHostInNames))
+            {
+                nick = IrcSource.FromPrefix(userPrefix).Nick;
+            }
+
+            var search = channelUsers.FirstOrDefault(u => u.User.Equals(nick, StringComparison.OrdinalIgnoreCase));
+            if (search != null)
+            {
+                channelUsers.Remove(search);
+            }
+        }
+        
+        if (StrictNames)
+        {
+            Send($"NAMES {channel}");
         }
     }
     
