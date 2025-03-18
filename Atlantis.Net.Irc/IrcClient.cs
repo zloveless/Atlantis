@@ -3,7 +3,6 @@ using System.Text.RegularExpressions;
 using Atlantis.Net.Irc.Events;
 using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 
 namespace Atlantis.Net.Irc;
 
@@ -11,8 +10,6 @@ namespace Atlantis.Net.Irc;
 public class IrcClient
 {
     public const string Version = "Atlantis.Net.Irc/5.0.0 (.NET 9.0)";
-    
-    private Regex _multiPrefixNames;
     
     /// <summary>
     /// Returns a set of capabilities that the <see cref="IrcClient" /> supports and expects.
@@ -25,6 +22,8 @@ public class IrcClient
     ];
     
     private string _channelTypes;
+    private ChannelModes _channelModes;
+    private Regex _multiPrefixNames;
     private string _prefixSymbols;
     private string _prefixModes;
     
@@ -221,6 +220,108 @@ public class IrcClient
 
         return string.Empty;
     }
+
+    /// <summary>
+    /// Returns a <see cref="ChannelUser" /> if they exist on the channel.
+    /// </summary>
+    /// <param name="channel"></param>
+    /// <param name="userName"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentNullException"></exception>
+    /// <exception cref="ArgumentOutOfRangeException"></exception>
+    private ChannelUser? GetUserInChannelFromUserName(string channel, string userName) 
+    {
+        if (string.IsNullOrEmpty(channel))
+        {
+            throw new ArgumentNullException(nameof(channel));
+        }
+        
+        if (string.IsNullOrEmpty(userName))
+        {
+            throw new ArgumentNullException(nameof(userName));
+        }
+        
+        if (!_channelUsers.ContainsKey(channel))
+        {
+            throw new ArgumentOutOfRangeException(nameof(channel));
+        }
+        
+        // ReSharper disable once ConvertIfStatementToReturnStatement
+        if (_channelUsers.TryGetValue(channel, out var channelUsers))
+        {
+            return channelUsers.FirstOrDefault(cu => cu.User.StartsWith(userName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return null;
+    }
+    
+    private void UpdateUserOnChannel(string channel, ChannelUser channelUser) 
+    {
+        if (string.IsNullOrEmpty(channel))
+        {
+            throw new ArgumentNullException(nameof(channel));
+        }
+        
+        if (!_channelUsers.ContainsKey(channel))
+        {
+            throw new ArgumentOutOfRangeException(nameof(channel));
+        }
+
+        if (!_channelUsers.TryGetValue(channel, out var channelUsers)) return;
+
+        var search =
+            channelUsers.FirstOrDefault(cu => cu.User.Equals(channelUser.User, StringComparison.OrdinalIgnoreCase));
+        if (search != null)
+        {
+            channelUsers.Remove(search);
+        }
+
+        channelUsers.Add(channelUser);
+    }
+    
+    private IEnumerable<GenericMode> ParseChannelModes(string modes, params string[] parameters) 
+    {
+        var set = false;
+        for (int modeIndex = 0, parameterIndex = 0; modeIndex < modes.Length; ++modeIndex)
+        {
+            // ReSharper disable once ConvertIfStatementToSwitchStatement
+            if (modes[modeIndex] == '+') set = true;
+            else if (modes[modeIndex] == '-') set = false;
+            else if (_channelModes.ListModes.Contains(modes[modeIndex]))
+            {
+                var arg = parameters[parameterIndex];
+                parameterIndex++;
+                yield return new GenericMode(modes[modeIndex], arg, set, ModeType.List);
+            }
+            else if (_channelModes.ModesWithParameter.Contains(modes[modeIndex]))
+            {
+                var arg = parameters[parameterIndex];
+                parameterIndex++;
+                yield return new GenericMode(modes[modeIndex], arg, set, ModeType.SetUnset);
+            }
+            else if (_channelModes.ModesWithParametersWhenSet.Contains(modes[modeIndex]))
+            {
+                var arg = string.Empty;
+                if (set)
+                {
+                    arg = parameters[parameterIndex];
+                    parameterIndex++;
+                }
+
+                yield return new GenericMode(modes[modeIndex], arg, set, ModeType.Set);
+            }
+            else if (_channelModes.ModesWithNoParameter.Contains(modes[modeIndex]))
+            {
+                yield return new GenericMode(modes[modeIndex], string.Empty, set, ModeType.NoParam);
+            }
+            else if (_prefixModes.Contains(modes[modeIndex]))
+            {
+                var arg = parameters[parameterIndex];
+                parameterIndex++;
+                yield return new GenericMode(modes[modeIndex], arg, set, ModeType.Access);
+            }
+        }
+    }
     
     /// <summary>
     /// Returns whether or not the specified capability is supported by the current <see cref="IrcClient" />.
@@ -236,7 +337,10 @@ public class IrcClient
     public Task<bool> Start() => _connection.Start();
 
     /// <inheritdoc cref="IrcConnection.Stop" />
-    public Task<bool> Stop(string? reason = null) => _connection.Stop(reason ?? "Exiting");
+    public Task<bool> Stop(string? reason = null)
+    {
+        return _connection.Stop(reason ?? "Exiting");
+    }
 
     /// <inheritdoc cref="IrcConnection.Send" />
     public bool Send(string format, params object[] args) => _connection.Send(format, args);
@@ -435,6 +539,20 @@ public class IrcClient
         {
             OnPart(commandParams[0], prefix);
         }
+        else if (command.Equals("MODE", StringComparison.OrdinalIgnoreCase))
+        {
+            var target = commandParams[0];
+            if (!IsChannelName(target))
+            {
+                // TODO: Self modes. Ignored for now.
+                return;
+            }
+            
+            var modes = commandParams[1];
+            var otherParams = commandParams.Skip(2).Concat(trailing.Split(' ', StringSplitOptions.RemoveEmptyEntries)).ToArray();
+            
+            OnChannelMode(target, modes, otherParams);
+        }
         else
         {
             Console.WriteLine($"<- ({prefix}) {command} [{string.Join(", ", commandParams)}] ({trailing})");
@@ -449,6 +567,48 @@ public class IrcClient
     protected virtual void OnChannelMessageReceived(string prefix, string channel, string message, bool notice = false, IDictionary<string, string>? tags = null)
     {
         ChannelMessageReceivedEvent?.Invoke(this, new MessageReceivedEventArgs(message, prefix, channel, notice, tags));
+    }
+    
+    protected virtual void OnChannelMode(string channel, string modeString, string[] parameters)
+    {
+        foreach (var item in ParseChannelModes(modeString, parameters))
+        {
+            if (item.Type == ModeType.Access)
+            {
+                var prefixIdx = _prefixModes.IndexOf(item.Mode);
+                var prefix = _prefixSymbols[prefixIdx];
+                var channelUser = GetUserInChannelFromUserName(channel, item.Parameter);
+                
+                if (channelUser == null)
+                {
+                    // We somehow don't have a record of them... BUG!
+                    continue;
+                }
+
+                var oldModes = channelUser.Modes;
+                
+                var modes = channelUser.Modes;
+                if (string.IsNullOrEmpty(modes))
+                {
+                    modes = string.Empty;
+                }
+                
+                modes = item.IsSet ? modes += prefix : modes.Remove(prefix);
+                
+                // Reorder the modes according to RPL_ISUPPORT's order.
+                // 
+                // By doing so, the user can simply taking modes[0] and be assured
+                // that they have they highest access for the user.
+                modes = new string(modes.OrderBy(ch => _prefixSymbols.IndexOf(ch)).ToArray());
+                
+                UpdateUserOnChannel(channel, channelUser with { Modes = modes });
+            }
+            else
+            {
+                var set = item.IsSet ? '+' : '-';
+                _logger?.LogDebug($"*** OTHER MODE({channel}): {set}{item.Mode} {item.Parameter}\t\t{item.Type}");
+            }
+        }
     }
     
     protected virtual void OnCtcpReceived(string prefix, string ctcpEvent)
@@ -687,6 +847,21 @@ public class IrcClient
             {
                 _multiPrefixNames = new Regex(@$"(?<access>[{_prefixSymbols}]*)(?<prefix>\S+)", RegexOptions.Compiled);
             }
+        }
+        
+        if (_serverFeatureSupport.TryGetValue("CHANMODES", out var cModes))
+        {
+            var chanModes = cModes.Split(',');
+            
+            // Invalid sequence
+            if (chanModes.Length != 4) return;
+
+            var listModes = chanModes[0];
+            var modesWithParam = chanModes[1];
+            var modesWithParamsWhenSet = chanModes[2];
+            var modesWithNoParam = chanModes[3];
+
+            _channelModes = new ChannelModes(listModes, modesWithParam, modesWithParamsWhenSet, modesWithNoParam);
         }
     }
 
