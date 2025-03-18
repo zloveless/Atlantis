@@ -22,7 +22,7 @@ public class IrcClient
     ];
     
     private string _channelTypes;
-    private ChannelModes _channelModes;
+    private ChannelModes _chanModes;
     private Regex _multiPrefixNames;
     private string _prefixSymbols;
     private string _prefixModes;
@@ -32,6 +32,7 @@ public class IrcClient
     private IrcConnection _connection;
 
     private readonly Dictionary<string, List<ChannelUser>> _channelUsers = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, HashSet<ChannelMode>> _channelModes = new(StringComparer.OrdinalIgnoreCase);
     
     private readonly List<string> _enabledCapabilities = [];
     private readonly SemaphoreSlim _registrationLock = new(0, 1);
@@ -152,6 +153,50 @@ public class IrcClient
     #endregion
 
     #region Methods
+
+    /// <summary>
+    /// Adds a new or updates an existing channel mode to the internal registrar.
+    /// </summary>
+    /// <param name="channel"></param>
+    /// <param name="channelMode"></param>
+    /// <param name="remove">Whether or not to remove the channel mode.</param>
+    private void AddOrUpdateModeOnChannel(string channel, ChannelMode channelMode, bool remove = false) 
+    {
+        if (_channelModes.TryGetValue(channel, out var channelModes))
+        {
+            // Checks if the parameter for this mode is required and whether it's set.
+            bool IsModeParameterRequired(ChannelMode cm) => cm.Type == ModeType.NoParam && cm.Parameter == null;
+
+            // Checks whether the parameter is NOT null and if it matches the provided parameter.
+            bool DoesRequiredParameterMatchProvidedParam(ChannelMode cm) => cm.Parameter != null &&
+                                                                            cm.Parameter.Equals(channelMode.Parameter,
+                                                                                StringComparison.OrdinalIgnoreCase);
+            
+            // Checks if the parameter is required and whether it matches the provided channelMode 
+            bool DoesParameterMatch(ChannelMode cm) =>
+                IsModeParameterRequired(cm) || DoesRequiredParameterMatchProvidedParam(cm);
+
+            var current = channelModes.FirstOrDefault(cm => cm.Mode.Equals(channelMode.Mode) && DoesParameterMatch(cm));
+            
+            if (current != null)
+            {
+                channelModes.Remove(current);
+            }
+            
+            // If remove was not requested, (re-) add the mode back to the channel modes list.
+            if (!remove)
+            {
+                channelModes.Add(channelMode);
+            }
+        }
+        else
+        {
+            _channelModes[channel] =
+            [
+                channelMode
+            ];
+        }
+    }
     
     /// <summary>
     /// Adds the user's modes to the specified channel.
@@ -305,19 +350,19 @@ public class IrcClient
             // ReSharper disable once ConvertIfStatementToSwitchStatement
             if (modes[modeIndex] == '+') set = true;
             else if (modes[modeIndex] == '-') set = false;
-            else if (_channelModes.ListModes.Contains(modes[modeIndex]))
+            else if (_chanModes.ListModes.Contains(modes[modeIndex]))
             {
                 var arg = parameters[parameterIndex];
                 parameterIndex++;
                 yield return new GenericMode(modes[modeIndex], arg, set, ModeType.List);
             }
-            else if (_channelModes.ModesWithParameter.Contains(modes[modeIndex]))
+            else if (_chanModes.ModesWithParameter.Contains(modes[modeIndex]))
             {
                 var arg = parameters[parameterIndex];
                 parameterIndex++;
                 yield return new GenericMode(modes[modeIndex], arg, set, ModeType.SetUnset);
             }
-            else if (_channelModes.ModesWithParametersWhenSet.Contains(modes[modeIndex]))
+            else if (_chanModes.ModesWithParametersWhenSet.Contains(modes[modeIndex]))
             {
                 var arg = string.Empty;
                 if (set)
@@ -328,7 +373,7 @@ public class IrcClient
 
                 yield return new GenericMode(modes[modeIndex], arg, set, ModeType.Set);
             }
-            else if (_channelModes.ModesWithNoParameter.Contains(modes[modeIndex]))
+            else if (_chanModes.ModesWithNoParameter.Contains(modes[modeIndex]))
             {
                 yield return new GenericMode(modes[modeIndex], string.Empty, set, ModeType.NoParam);
             }
@@ -463,10 +508,9 @@ public class IrcClient
         var command = parts[0];
         var commandParams = parts.Skip(1).ToArray();
 
-        var numeric = -1;
-        if (int.TryParse(command, out numeric))
+        if (int.TryParse(command, out var numeric))
         {
-            OnIrcNumeric(numeric, prefix, trailing, commandParams, tags);
+            OnIrcNumeric(numeric, prefix!, trailing!, commandParams, tags);
         }
         else if (command.Equals("CAP", StringComparison.OrdinalIgnoreCase) && _registrationLock.CurrentCount == 0)
         {
@@ -505,11 +549,11 @@ public class IrcClient
         }
         else if (command.Equals("ERROR", StringComparison.OrdinalIgnoreCase))
         {
-            OnError(trailing);
+            OnError(trailing!);
         }
         else
         {
-            OnCommand(command, prefix, trailing, commandParams, tags);
+            OnCommand(command, prefix!, trailing!, commandParams, tags);
         }
     }
     
@@ -567,7 +611,7 @@ public class IrcClient
         }
         else if (command.Equals("PART", StringComparison.OrdinalIgnoreCase))
         {
-            OnPart(commandParams[0], prefix);
+            OnPart(trailing, prefix);
         }
         else if (command.Equals("MODE", StringComparison.OrdinalIgnoreCase))
         {
@@ -643,8 +687,8 @@ public class IrcClient
                 {
                     modes = string.Empty;
                 }
-                
-                modes = item.IsSet ? modes += prefixSymbol : modes.Remove(prefixSymbol);
+
+                modes = item.IsSet ? modes += prefixSymbol : modes.Replace(prefixSymbol.ToString(), string.Empty);
                 
                 // Reorder the modes according to RPL_ISUPPORT's order.
                 // 
@@ -656,8 +700,7 @@ public class IrcClient
             }
             else
             {
-                var set = item.IsSet ? '+' : '-';
-                _logger?.LogDebug($"*** OTHER MODE({channel}): {set}{item.Mode} {item.Parameter}\t\t{item.Type}");
+                AddOrUpdateModeOnChannel(channel, new ChannelMode(item.Mode, item.Type, item.Parameter), remove: !item.IsSet);
             }
         }
     }
@@ -730,11 +773,40 @@ public class IrcClient
     /// <param name="parameters">The parameters between the numeric and its trailing data.</param>
     /// <param name="tags">Any message tags associated with the message.</param>
     protected virtual void OnIrcNumeric(int numeric, string prefix, string trailing, string[] parameters, IDictionary<string, string> tags)
-    {
+    {        
         // ReSharper disable once ConvertIfStatementToSwitchStatement
         if (numeric == 1) 
         {
             OnConnectionEstablished();
+        }
+        else if (numeric == 324)
+        {
+            var channel = parameters[1];
+            string modeString;
+            string[] modeParams;
+            
+            if (parameters.Length == 2)
+            {
+                modeString = trailing;
+                modeParams = [];
+            }
+            else if (parameters.Length == 3)
+            {
+                modeString = parameters[2];
+                modeParams = trailing.Split(' ');
+            }
+            else
+            {
+                throw new InvalidOperationException($"Unknown case of numeric 324: {string.Join(',', parameters)} -> {trailing}");
+            }
+            
+            foreach(var item in ParseChannelModes(modeString, modeParams)) 
+            {
+                if (item.Type != ModeType.Access && item.Type != ModeType.User)
+                {
+                    AddOrUpdateModeOnChannel(channel, new ChannelMode(item.Mode, item.Type, item.Parameter));
+                }
+            }
         }
         else if (numeric == 353)
         {
@@ -794,6 +866,10 @@ public class IrcClient
                 AddUserToChannel(channel, new ChannelUser(m.Groups["prefix"].ToString(), m.Groups["access"].ToString()));
             }
         }
+        else if (_multiPrefixNames == null)
+        {
+            throw new InvalidOperationException("IRCv3 multi-prefix capability enabled, but the regex is unset.");
+        }
         else
         {
             var users = nickList.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -846,6 +922,11 @@ public class IrcClient
         {
             Send($"NAMES {channel}");
         }
+        
+        if (isSelf)
+        {
+            Send($"MODE {channel}");
+        }
     }
     
     /// <summary>
@@ -863,6 +944,7 @@ public class IrcClient
         {
             // If this is us leaving a channel, just remove it.
             _channelUsers.Remove(channel);
+            _channelModes.Remove(channel);
             return;
         }
         
@@ -929,7 +1011,7 @@ public class IrcClient
             var modesWithParamsWhenSet = chanModes[2];
             var modesWithNoParam = chanModes[3];
 
-            _channelModes = new ChannelModes(listModes, modesWithParam, modesWithParamsWhenSet, modesWithNoParam);
+            _chanModes = new ChannelModes(listModes, modesWithParam, modesWithParamsWhenSet, modesWithNoParam);
         }
     }
 

@@ -24,3 +24,12 @@ public record ChannelModes(string ListModes, string ModesWithParameter, string M
 /// <param name="Type"></param>
 [PublicAPI]
 public record GenericMode(char Mode, string Parameter, bool IsSet, ModeType Type);
+
+/// <summary>
+/// Represents a generic channel mode set on a channel.
+/// </summary>
+/// <param name="Mode">The mode character set.</param>
+/// <param name="Parameter">The parameter provided to the mode, if available.</param>
+/// <param name="Type">The type of channel mode.</param>
+[PublicAPI]
+public record ChannelMode(char Mode, ModeType Type, string? Parameter = null);

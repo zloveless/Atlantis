@@ -1,25 +1,37 @@
 ﻿using Atlantis.Net.Irc;
+using Microsoft.Extensions.Logging;
+using Serilog;
+
+#region Logging
+
+Log.Logger = new LoggerConfiguration()
+             .MinimumLevel.Debug()
+             .WriteTo.Console()
+             .CreateLogger();
+
+var loggerFactory = LoggerFactory.Create(builder =>
+{
+    builder.AddSerilog();
+});
+
+var logger = loggerFactory.CreateLogger<Program>();
+
+#endregion
 
 var config = IrcClientConfiguration.New("GTestClient");
-var client = new IrcClient(config)
+var client = new IrcClient(config, logger)
 {
     HostName = "irc.cncirc.net",
     UseSsl = true,
-    Port = 9999
-};
-
-client.EnableV3 = true;
-client.StrictNames = true;
-
-client.CapAckReceivedEvent += (sender, e) =>
-{
-    //Console.WriteLine($"*** Received CAP ACK with the following capabilities: {string.Join(", ", e.Capabilities)}");
+    Port = 9999,
+    EnableV3 = true,
+    StrictNames = true
 };
 
 client.ConnectionEstablishedEvent += (sender, e) => 
 {
-    Console.WriteLine("Connected to IRC!");
-    client.Send("JOIN #genesis");
+    logger.LogInformation("Connected to IRC!");
+    client.Send("JOIN #neopub");
 };
 
 client.ChannelMessageReceivedEvent += (sender, e) =>
@@ -46,53 +58,9 @@ client.ChannelMessageReceivedEvent += (sender, e) =>
     }
 };
 
-client.PrivateMessageReceivedEvent += (sender, e) =>
-{
-    /*var source = IrcSource.FromPrefix(e.Source);
-    // ReSharper disable once ConvertIfStatementToConditionalTernaryExpression
-    if (e.IsNotice)
-    {
-        Console.WriteLine($"NOTICE({source}, {e.Tags?.Count ?? 0}): {e.Message}");
-    }
-    else
-    {
-        Console.WriteLine($"MESSAGE({source}, {e.Tags?.Count ?? 0}): {e.Message}");
-    }*/
-};
-
-client.CtcpReceivedEvent += (sender, e) =>
-{
-    // Console.WriteLine($"Received CTCP ({e.Event}) from {e.Source}");
-};
-
-client.MotdReceivedEvent += (sender, e) =>
-{
-    // Console.WriteLine($"Received MOTD: Length = {e.Motd.Length}");
-};
-
-client.ServerNoticeReceivedEvent += (sender, e) =>
-{
-    // Console.WriteLine($"SNOTICE({e.Source}): {e.Message}");
-};
-
-client.ServerFeaturesReceivedEvent += (sender, e) =>
-{
-    // Console.WriteLine($"Received RPL_ISUPPORT: {JsonConvert.SerializeObject(e.ServerFeatures)}");
-};
-
 client.ErrorReceivedEvent += (sender, e) =>
 {
     Console.WriteLine($"ERROR: {e.Message}");
-};
-
-client.JoinEvent += (sender, e) =>
-{
-    Console.WriteLine($"JOIN({e.Channel}): {e.UserPrefix}");
-};
-
-client.PartEvent += (sender, e) =>
-{
-    Console.WriteLine($"PART({e.Channel}): {e.UserPrefix}");
 };
 
 await client.Start();
@@ -104,3 +72,5 @@ Console.CancelKeyPress += (sender, e) =>
     e.Cancel = true;
     client.Stop("Exiting...").Wait();
 };
+
+await Log.CloseAndFlushAsync();
