@@ -571,6 +571,11 @@ public class IrcClient
     
     protected virtual void OnChannelMode(string channel, string modeString, string[] parameters)
     {
+        if (StrictNames)
+        {
+            Send($"NAMES {channel}");
+        }
+        
         foreach (var item in ParseChannelModes(modeString, parameters))
         {
             if (item.Type == ModeType.Access)
