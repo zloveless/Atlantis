@@ -589,8 +589,6 @@ public class IrcClient
                     // We somehow don't have a record of them... BUG!
                     continue;
                 }
-
-                var oldModes = channelUser.Modes;
                 
                 var modes = channelUser.Modes;
                 if (string.IsNullOrEmpty(modes))
