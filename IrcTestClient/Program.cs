@@ -31,7 +31,13 @@ var client = new IrcClient(config, logger)
 client.ConnectionEstablishedEvent += (sender, e) => 
 {
     logger.LogInformation("Connected to IRC!");
-    client.Send("JOIN #neopub");
+    client.Send("JOIN #genesis");
+};
+
+client.KickEvent += (sender, e) =>
+{
+    var source = IrcSource.FromPrefix(e.UserPrefix);
+    Console.WriteLine($"*** KICK: {source} removed {e.Target} from {e.Channel} for '{e.Reason}'.");
 };
 
 client.ChannelMessageReceivedEvent += (sender, e) =>

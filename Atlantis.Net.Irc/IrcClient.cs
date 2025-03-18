@@ -143,7 +143,12 @@ public class IrcClient
     /// <summary>
     /// Raised when a user leaves a channel being monitored by the IrcClient.
     /// </summary>
-    public event EventHandler<JoinPartEventArgs> PartEvent; 
+    public event EventHandler<JoinPartEventArgs> PartEvent;
+
+    /// <summary>
+    /// Raised when a user is forcefully removed from a channel.
+    /// </summary>
+    public event EventHandler<KickEventArgs> KickEvent; 
 
     /// <summary>
     /// Event fired after the last RPL_ISUPPORT (005) line received. Multiple lines buffered into a single event fire.
@@ -627,9 +632,16 @@ public class IrcClient
             
             OnChannelMode(prefix, target, modes, otherParams);
         }
+        else if (command.Equals("KICK", StringComparison.OrdinalIgnoreCase))
+        {
+            var channel = commandParams[0];
+            var target = commandParams[1];
+            var comment = trailing;
+            OnKick(prefix, channel, target, comment);
+        }
         else
         {
-            Console.WriteLine($"<- ({prefix}) {command} [{string.Join(", ", commandParams)}] ({trailing})");
+            _logger?.LogDebug($"<- ({prefix}) {command} [{string.Join(", ", commandParams)}] ({trailing})");
         }
     }
     
@@ -726,7 +738,7 @@ public class IrcClient
 
         if (!Enum.TryParse(ctcpEvent, true, out CtcpEvent ctcp))
         {
-            _logger?.LogDebug($"Unrecognized CTCP event? {ctcpEvent} (from {prefix})");
+            _logger?.LogWarning($"Unrecognized CTCP event? {ctcpEvent} (from {prefix})");
             return;
         }
         
@@ -848,6 +860,39 @@ public class IrcClient
         }
             
         _lastNumeric = numeric;
+    }
+    
+    protected virtual void OnKick(string userPrefix, string channel, string target, string reason)
+    {
+        KickEvent?.Invoke(this, new KickEventArgs(channel, userPrefix, target, reason));
+        
+        var isSelf = target.Equals(_config.Nick, StringComparison.OrdinalIgnoreCase);
+        if (isSelf)
+        {
+            _channelUsers.Remove(channel);
+            _channelModes.Remove(channel);
+            return;
+        }
+        
+        if (_channelUsers.TryGetValue(channel, out var channelUsers))
+        {
+            var nick = userPrefix;
+            if (!SupportsCapability(IrcV3Capabilities.UserHostInNames))
+            {
+                nick = IrcSource.FromPrefix(userPrefix).Nick;
+            }
+
+            var search = channelUsers.FirstOrDefault(u => u.User.Equals(nick, StringComparison.OrdinalIgnoreCase));
+            if (search != null)
+            {
+                channelUsers.Remove(search);
+            }
+        }
+        
+        if (StrictNames)
+        {
+            Send($"NAMES {channel}");
+        }
     }
     
     protected virtual void OnMotdReceived(string motd) 
