@@ -9,7 +9,7 @@ namespace Atlantis.Net.Irc;
 [PublicAPI]
 public class IrcClient
 {
-    public const string Version = "Atlantis.Net.Irc/5.0.0 (.NET 9.0)";
+    public const string Version = "Atlantis.Net.Irc/5.0.0 (.NET 9.0) - Source Code: https://github.com/zloveless/Atlantis";
     
     /// <summary>
     /// Returns a set of capabilities that the <see cref="IrcClient" /> supports and expects.
@@ -153,6 +153,11 @@ public class IrcClient
 
     #region Methods
     
+    /// <summary>
+    /// Adds the user's modes to the specified channel.
+    /// </summary>
+    /// <param name="channel">The channel to update.</param>
+    /// <param name="user">The user's modes to update on the specified channel.</param>
     private void AddUserToChannel(string channel, ChannelUser user)
     {
         if (_channelUsers.TryGetValue(channel, out var channelUsers))
@@ -180,11 +185,11 @@ public class IrcClient
     /// <summary>
     /// Returns a value whether or not the specified target is a channel name or not.
     /// </summary>
-    /// <param name="target"></param>
-    /// <returns></returns>
+    /// <param name="target">The name to check whether its a channel.</param>
+    /// <returns>Whether the specified target is a channel according to the received prefixes.</returns>
     private bool IsChannelName(string target)
     {
-        return _channelTypes.Any(target.StartsWith);
+        return !string.IsNullOrEmpty(_channelTypes) && _channelTypes.Any(target.StartsWith);
     }
 
     /// <summary>
@@ -255,9 +260,16 @@ public class IrcClient
         return null;
     }
     
+    /// <summary>
+    /// Updates the specified user's modes on the specified channel.
+    /// </summary>
+    /// <param name="channel">The channel in which to update.</param>
+    /// <param name="channelUser">The user's modes for the specified channel.</param>
+    /// <exception cref="ArgumentNullException">Throw when channel is invalid.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when the specified channel does not exist in the internal mapping.</exception>
     private void UpdateUserOnChannel(string channel, ChannelUser channelUser) 
     {
-        if (string.IsNullOrEmpty(channel))
+        if (string.IsNullOrEmpty(channel) || !IsChannelName(channel))
         {
             throw new ArgumentNullException(nameof(channel));
         }
@@ -279,7 +291,13 @@ public class IrcClient
         channelUsers.Add(channelUser);
     }
     
-    private IEnumerable<GenericMode> ParseChannelModes(string modes, params string[] parameters) 
+    /// <summary>
+    /// Returns an enumerable of channel modes from mode strings and parameters received from a MODE command.
+    /// </summary>
+    /// <param name="modes">A complete mode string containing alpha-characters and +/- symbols, indicating setting modes on a channel.</param>
+    /// <param name="parameters">The parameters for all the modes received in the event.</param>
+    /// <returns>An enumerable of modes, allowing processing as modes are returned from the method.</returns>
+    protected IEnumerable<GenericMode> ParseChannelModes(string modes, params string[] parameters) 
     {
         var set = false;
         for (int modeIndex = 0, parameterIndex = 0; modeIndex < modes.Length; ++modeIndex)
@@ -379,6 +397,10 @@ public class IrcClient
         return true;
     }
     
+    /// <summary>
+    /// Processes incoming data received from the socket.
+    /// </summary>
+    /// <param name="data">The raw data line received.</param>
     protected virtual void OnDataReceived(string data) 
     {
         if (data.StartsWith("PING", StringComparison.OrdinalIgnoreCase))
@@ -491,6 +513,14 @@ public class IrcClient
         }
     }
     
+    /// <summary>
+    /// Processes an IRC command received from the IRC server.
+    /// </summary>
+    /// <param name="command">The base command received, i.e., PRIVMSG, NOTICE, etc.</param>
+    /// <param name="prefix">The source of the command.</param>
+    /// <param name="trailing">The value after the command's parameters, marked by a colon.</param>
+    /// <param name="commandParams">An array of parameters between the command and its trailing data.</param>
+    /// <param name="tags">Any message tags received with the command.</param>
     protected virtual void OnCommand(string command, string prefix, string trailing, string[] commandParams, IDictionary<string, string> tags) 
     {
         if (command.Equals("PRIVMSG", StringComparison.OrdinalIgnoreCase)
@@ -551,7 +581,7 @@ public class IrcClient
             var modes = commandParams[1];
             var otherParams = commandParams.Skip(2).Concat(trailing.Split(' ', StringSplitOptions.RemoveEmptyEntries)).ToArray();
             
-            OnChannelMode(target, modes, otherParams);
+            OnChannelMode(prefix, target, modes, otherParams);
         }
         else
         {
@@ -559,17 +589,35 @@ public class IrcClient
         }
     }
     
+    /// <summary>
+    /// Handles the welcome packet (numeric 001) received from the IRC server.
+    /// </summary>
     protected virtual void OnConnectionEstablished()
     {
         ConnectionEstablishedEvent?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Handles a message event received from the IRC server targeting a channel.
+    /// </summary>
+    /// <param name="prefix">The source of the message.</param>
+    /// <param name="channel">The target channel of the message.</param>
+    /// <param name="message">The message itself.</param>
+    /// <param name="notice">Whether or not the message was a NOTICE or PRIVMSG.</param>
+    /// <param name="tags">Any tags that the message contained.</param>
     protected virtual void OnChannelMessageReceived(string prefix, string channel, string message, bool notice = false, IDictionary<string, string>? tags = null)
     {
         ChannelMessageReceivedEvent?.Invoke(this, new MessageReceivedEventArgs(message, prefix, channel, notice, tags));
     }
-    
-    protected virtual void OnChannelMode(string channel, string modeString, string[] parameters)
+
+    /// <summary>
+    /// Processes modes applied to a channel from a user.
+    /// </summary>
+    /// <param name="prefix"></param>
+    /// <param name="channel"></param>
+    /// <param name="modeString"></param>
+    /// <param name="parameters"></param>
+    protected virtual void OnChannelMode(string prefix, string channel, string modeString, string[] parameters)
     {
         if (StrictNames)
         {
@@ -581,7 +629,7 @@ public class IrcClient
             if (item.Type == ModeType.Access)
             {
                 var prefixIdx = _prefixModes.IndexOf(item.Mode);
-                var prefix = _prefixSymbols[prefixIdx];
+                var prefixSymbol = _prefixSymbols[prefixIdx];
                 var channelUser = GetUserInChannelFromUserName(channel, item.Parameter);
                 
                 if (channelUser == null)
@@ -596,7 +644,7 @@ public class IrcClient
                     modes = string.Empty;
                 }
                 
-                modes = item.IsSet ? modes += prefix : modes.Remove(prefix);
+                modes = item.IsSet ? modes += prefixSymbol : modes.Remove(prefixSymbol);
                 
                 // Reorder the modes according to RPL_ISUPPORT's order.
                 // 
@@ -614,6 +662,11 @@ public class IrcClient
         }
     }
     
+    /// <summary>
+    /// Processes simple client-to-client protocol (CTCP) messages excluding DCC events, primarily for IRC security scans that look for valid version replies. 
+    /// </summary>
+    /// <param name="prefix">The source of the CTCP event.</param>
+    /// <param name="ctcpEvent">The CTCP event name.</param>
     protected virtual void OnCtcpReceived(string prefix, string ctcpEvent)
     {
         // Filter out DCC requests.
@@ -659,11 +712,23 @@ public class IrcClient
         _connection.Send($"NOTICE {source} :\x01{ctcp.ToString().ToUpper()} {response}\x01");
     }
     
+    /// <summary>
+    /// Handles errors detected in the IRC stream, usually via an ERROR command but some internal errors are filtered through this.
+    /// </summary>
+    /// <param name="message">The error message received.</param>
     protected virtual void OnError(string message)
     {
         ErrorReceivedEvent?.Invoke(this, new IrcErrorEventArgs(message));
     }
     
+    /// <summary>
+    /// Processes IRC numerics received from the IRC server.
+    /// </summary>
+    /// <param name="numeric">The numeric identifier.</param>
+    /// <param name="prefix">The source of the numeric, likely a server.</param>
+    /// <param name="trailing">The trailing data after the numeric's parameters, marked by a colon.</param>
+    /// <param name="parameters">The parameters between the numeric and its trailing data.</param>
+    /// <param name="tags">Any message tags associated with the message.</param>
     protected virtual void OnIrcNumeric(int numeric, string prefix, string trailing, string[] parameters, IDictionary<string, string> tags)
     {
         // ReSharper disable once ConvertIfStatementToSwitchStatement
