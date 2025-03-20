@@ -37,7 +37,7 @@ client.ConnectionEstablishedEvent += (sender, e) =>
 client.KickEvent += (sender, e) =>
 {
     var source = IrcSource.FromPrefix(e.UserPrefix);
-    Console.WriteLine($"*** KICK: {source} removed {e.Target} from {e.Channel} for '{e.Reason}'.");
+    logger.LogInformation($"*** KICK: {source} removed {e.Target} from {e.Channel} for '{e.Reason}'.");
 };
 
 client.ChannelMessageReceivedEvent += (sender, e) =>
@@ -46,11 +46,11 @@ client.ChannelMessageReceivedEvent += (sender, e) =>
     // ReSharper disable once ConvertIfStatementToConditionalTernaryExpression
     if (e.IsNotice)
     {
-        Console.WriteLine($"NOTICE({e.Target}, {e.Tags?.Count ?? 0}) from {source}: {e.Message}");
+        logger.LogInformation($"NOTICE({e.Target}, {e.Tags?.Count ?? 0}) from {source}: {e.Message}");
     }
     else
     {
-        Console.WriteLine($"MESSAGE({e.Target}, {e.Tags?.Count ?? 0}) from {source}: {e.Message}");
+        logger.LogInformation($"MESSAGE({e.Target}, {e.Tags?.Count ?? 0}) from {source}: {e.Message}");
     }
     
     if (!e.IsNotice && e.Message.StartsWith("!hello")) 
@@ -66,7 +66,7 @@ client.ChannelMessageReceivedEvent += (sender, e) =>
 
 client.ErrorReceivedEvent += (sender, e) =>
 {
-    Console.WriteLine($"ERROR: {e.Message}");
+    logger.LogError($"ERROR: {e.Message}");
 };
 
 await client.Start();
@@ -74,7 +74,7 @@ await client.Start();
 Console.WriteLine("Press <CTRL+C> to cancel...");
 Console.CancelKeyPress += (sender, e) =>
 {
-    Console.WriteLine("Terminating...");
+    logger.LogInformation("Terminating...");
     e.Cancel = true;
     client.Stop("Exiting...").Wait();
 };

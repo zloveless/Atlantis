@@ -1,5 +1,8 @@
-﻿namespace Atlantis.Net.Irc.Events;
+﻿using JetBrains.Annotations;
 
+namespace Atlantis.Net.Irc.Events;
+
+[PublicAPI]
 public class CtcpReceivedEventArgs : EventArgs 
 {
     public CtcpReceivedEventArgs(string prefix, CtcpEvent eventType)
@@ -22,4 +25,9 @@ public class CtcpReceivedEventArgs : EventArgs
     /// Gets a value representing the type of CTCP request.
     /// </summary>
     public CtcpEvent Event { get; }
+    
+    /// <summary>
+    /// Gets or sets a value representing the overridden response.
+    /// </summary>
+    public string Message { get; set; }
 }

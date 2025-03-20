@@ -744,24 +744,31 @@ public class IrcClient
         
         var args = new CtcpReceivedEventArgs(prefix, ctcp);
         CtcpReceivedEvent?.Invoke(this, args);
-        if (args.Cancel) return;
         
-        var response = string.Empty;
-        switch(ctcp) 
+        string response;
+        if (args.Cancel && !string.IsNullOrEmpty(args.Message))
         {
-            case CtcpEvent.Finger:
-                response = "Buy me dinner first...";
-                break;
-            case CtcpEvent.Ping:
-                response = ctcpParams;
-                break;
-            case CtcpEvent.Time:
-                response = DateTime.Now.ToString("ddd MMM dd HH:mm:ss yyyy");
-                break;
-            case CtcpEvent.Version:
-            default:
-                response = Version;
-                break;
+            response = args.Message;
+        }
+        else if (args.Cancel) return;
+        else
+        {
+            switch (ctcp)
+            {
+                case CtcpEvent.Finger:
+                    response = "Buy me dinner first...";
+                    break;
+                case CtcpEvent.Ping:
+                    response = ctcpParams;
+                    break;
+                case CtcpEvent.Time:
+                    response = DateTime.Now.ToString("ddd MMM dd HH:mm:ss yyyy");
+                    break;
+                case CtcpEvent.Version:
+                default:
+                    response = Version;
+                    break;
+            }
         }
 
         _connection.Send($"NOTICE {source} :\x01{ctcp.ToString().ToUpper()} {response}\x01");
@@ -862,10 +869,18 @@ public class IrcClient
         _lastNumeric = numeric;
     }
     
+    /// <summary>
+    /// Handles kick events received from the IRC server.
+    /// </summary>
+    /// <param name="userPrefix">The source of the kick event.</param>
+    /// <param name="channel">The channel where the kick event originated.</param>
+    /// <param name="target">The client who was kicked.</param>
+    /// <param name="reason">The reason, if available, that the target was kicked.</param>
     protected virtual void OnKick(string userPrefix, string channel, string target, string reason)
     {
         KickEvent?.Invoke(this, new KickEventArgs(channel, userPrefix, target, reason));
         
+        // Similar to PART, if the target of this event is the client, just unregister the channel.
         var isSelf = target.Equals(_config.Nick, StringComparison.OrdinalIgnoreCase);
         if (isSelf)
         {
@@ -895,11 +910,21 @@ public class IrcClient
         }
     }
     
+    /// <summary>
+    /// Fires off the event for when the server sends the end numeric for message of the day.
+    /// </summary>
+    /// <param name="motd">The message of the day buffer.</param>
     protected virtual void OnMotdReceived(string motd) 
     {
         MotdReceivedEvent?.Invoke(this, new MotdEventArgs(motd));
     }
-    
+
+    /// <summary>
+    /// Processes a list of names and prefixes for a specified channel.
+    /// </summary>
+    /// <param name="channel">The channel in which this nick list.</param>
+    /// <param name="nickList">The list of nicks and prefixes.</param>
+    /// <exception cref="InvalidOperationException"></exception>
     protected virtual void OnNamesReplyReceived(string channel, string nickList)
     {
         if (SupportsCapability(IrcV3Capabilities.MultiPrefix) && _multiPrefixNames != null)
