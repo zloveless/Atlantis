@@ -392,6 +392,22 @@ public class IrcClient
     }
     
     /// <summary>
+    /// Removes the specified channel from being tracked by the client.
+    /// </summary>
+    /// <param name="channel"></param>
+    /// <exception cref="ArgumentException"></exception>
+    protected void RemoveChannel(string channel) 
+    {
+        if (!IsChannelName(channel))
+        {
+            throw new ArgumentException("The specified 'channel' is invalid.", nameof(channel));
+        }
+
+        _channelUsers.Remove(channel);
+        _channelModes.Remove(channel);
+    }
+    
+    /// <summary>
     /// Returns whether or not the specified capability is supported by the current <see cref="IrcClient" />.
     /// </summary>
     /// <param name="capName"></param>
@@ -894,8 +910,7 @@ public class IrcClient
         var isSelf = target.Equals(_config.Nick, StringComparison.OrdinalIgnoreCase);
         if (isSelf)
         {
-            _channelUsers.Remove(channel);
-            _channelModes.Remove(channel);
+            RemoveChannel(channel);
             return;
         }
         
@@ -1023,8 +1038,7 @@ public class IrcClient
         if (isSelf)
         {
             // If this is us leaving a channel, just remove it.
-            _channelUsers.Remove(channel);
-            _channelModes.Remove(channel);
+            RemoveChannel(channel);
             return;
         }
         
