@@ -93,6 +93,10 @@ public class IrcConnection
                 _authenticateSslHandler(sslStream);
                 _stream = sslStream;
             }
+            else
+            {
+                _stream = stream;
+            }
             
             _worker.Start();
             _connectHandler();
