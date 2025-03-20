@@ -9,7 +9,6 @@ namespace Atlantis.Net.Irc;
 
 [PublicAPI] public delegate void OnDataReceived(string data);
 [PublicAPI] public delegate void OnConnect();
-[PublicAPI] public delegate Task<bool> OnStop(string? reason = null);
 
 [PublicAPI] public delegate void AuthenticateSsl(SslStream stream);
 
@@ -22,7 +21,6 @@ public class IrcConnection
     private readonly OnDataReceived _dataReceived;
     private readonly AuthenticateSsl? _authenticateSslHandler;
     private readonly OnConnect _connectHandler;
-    private readonly OnStop _stopHandler;
     private static readonly Encoding Encoding = Encoding.UTF8;
     
     private readonly TcpClient _client = new();
@@ -32,10 +30,9 @@ public class IrcConnection
     private readonly Thread _worker;
     private bool _stopRequested;
 
-    public IrcConnection(OnConnect connectHandler, OnStop stopHandler, OnDataReceived dataReceivedHandler, AuthenticateSsl? authenticateSslHandler = null)
+    public IrcConnection(OnConnect connectHandler, OnDataReceived dataReceivedHandler, AuthenticateSsl? authenticateSslHandler = null)
     {
         _connectHandler = connectHandler;
-        _stopHandler = stopHandler;
         _dataReceived = dataReceivedHandler;
         _authenticateSslHandler = authenticateSslHandler;
 
@@ -115,21 +112,17 @@ public class IrcConnection
         return true;
     }
 
-    public async Task<bool> Stop(string? reason = null) 
+    public Task<bool> Stop() 
     {
         if (!Connected)
         {
-            return false;
+            return Task.FromResult(false);
         }
 
         _stopRequested = true;
+        _client.Close();
 
-        if (await _stopHandler(reason)) 
-        {
-            _client.Close();
-        }
-
-        return true;
+        return Task.FromResult(true);
     }
     
     private void ThreadCallback(object? state)

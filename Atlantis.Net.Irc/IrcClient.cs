@@ -47,7 +47,7 @@ public class IrcClient
     {
         _config = config;
         _logger = logger;
-        _connection = new IrcConnection(OnConnect, OnStop, OnDataReceived, stream => stream.AuthenticateAsClient(HostName));
+        _connection = new IrcConnection(OnConnect, OnDataReceived, stream => stream.AuthenticateAsClient(HostName));
     }
 
     #region Properties
@@ -405,16 +405,27 @@ public class IrcClient
     public Task<bool> Start() => _connection.Start();
 
     /// <inheritdoc cref="IrcConnection.Stop" />
-    public Task<bool> Stop(string? reason = null)
+    public async Task<bool> Stop(string? reason = null)
     {
-        return _connection.Stop(reason ?? "Exiting");
+        reason = reason == null ? string.Empty : string.Concat(" :", reason);
+        await SendAsync($"QUIT {reason}");
+        
+        return await _connection.Stop();
     }
 
     /// <inheritdoc cref="IrcConnection.Send" />
-    public bool Send(string format, params object[] args) => _connection.Send(format, args);
-    
+    public bool Send(string format, params object[] args)
+    {
+        _logger?.LogDebug($"-> {string.Format(format, args)}");
+        return _connection.Send(format, args);
+    }
+
     /// <inheritdoc cref="IrcConnection.SendAsync" />
-    public Task<bool> SendAsync(string format, params object[] args) => _connection.SendAsync(format, args);
+    public Task<bool> SendAsync(string format, params object[] args)
+    {
+        _logger?.LogDebug($"-> {string.Format(format, args)}");
+        return _connection.SendAsync(format, args);
+    }
 
     #endregion
 
@@ -424,11 +435,11 @@ public class IrcClient
     {
         if (!string.IsNullOrEmpty(_config.Password))
         {
-            _connection.Send($"PASS {_config.Password}");
+            Send($"PASS {_config.Password}");
         }
 
-        _connection.Send($"USER {_config.Ident} 0 * :{_config.RealName}");
-        _connection.Send($"NICK {_config.Nick}");
+        Send($"USER {_config.Ident} 0 * :{_config.RealName}");
+        Send($"NICK {_config.Nick}");
 
         if (!EnableV3)
         {
@@ -436,15 +447,8 @@ public class IrcClient
             return;
         }
         
-        _connection.Send("CAP LS 302");
+        Send("CAP LS 302");
         _registrationLock.Wait();
-    }
-    
-    protected virtual async Task<bool> OnStop(string? reason = null)
-    {
-        reason = reason == null ? string.Empty : string.Concat(" :", reason);
-        await _connection.SendAsync($"QUIT {reason}");
-        return true;
     }
     
     /// <summary>
@@ -456,7 +460,7 @@ public class IrcClient
         if (data.StartsWith("PING", StringComparison.OrdinalIgnoreCase))
         {
             var response = data.Substring(data.IndexOf(':') + 1);
-            _connection.Send("PONG {0}", response);
+            Send("PONG {0}", response);
             
             // Early exit. We've already responded to PING
             // so we don't need to process anymore!
@@ -529,24 +533,30 @@ public class IrcClient
                 // First get a list of capabilities that we can request and are available
                 var req = RequestedCapabilities.Intersect(availableCaps).ToArray();
                     
-                _connection.Send($"CAP REQ :{string.Join(' ', req)}");
+                Send($"CAP REQ :{string.Join(' ', req)}");
             }
             else if (subCommand.Equals("ACK", StringComparison.OrdinalIgnoreCase))
             {
                 var confirmedCaps = trailing!.Split(' ');
                 _enabledCapabilities.AddRange(confirmedCaps);
                 CapAckReceivedEvent?.Invoke(this, new CapAckReceivedEventArgs(_enabledCapabilities.ToArray()));
-                _connection.Send("CAP END");
+                Send("CAP END");
                 _registrationLock.Release();
             }
             else if (subCommand.Equals("NAK", StringComparison.OrdinalIgnoreCase))
             {
                 // We shouldn't have to worry about NAK's if the above code works fine, but I guess better safe than sorry.
+                // 
                 // I guess, if we can't use one or more capabilities, we're done here and can send CAP END.
                 // 
-                // This is because the specification isn't required to enumerate the bad.
+                // The reason we ignore NAK and mark the connection as not supporting ANY capabilities
+                // is because the specification isn't required to enumerate the incorrect ones that
+                // we requested.
+                //
+                // The specification really should force servers to enumerate these values to let us know which
+                // ones are incorrect and which ones are incorrect.
 
-                _connection.Send("CAP END");
+                Send("CAP END");
                 _registrationLock.Release();
 
                 OnError($"Unable to request the following capabilities: {trailing}");
@@ -771,7 +781,7 @@ public class IrcClient
             }
         }
 
-        _connection.Send($"NOTICE {source} :\x01{ctcp.ToString().ToUpper()} {response}\x01");
+        Send($"NOTICE {source} :\x01{ctcp.ToString().ToUpper()} {response}\x01");
     }
     
     /// <summary>
