@@ -33,3 +33,12 @@ public record GenericMode(char Mode, string Parameter, bool IsSet, ModeType Type
 /// <param name="Type">The type of channel mode.</param>
 [PublicAPI]
 public record ChannelMode(char Mode, ModeType Type, string? Parameter = null);
+
+
+/// <summary>
+/// Represents a collection of channel data.
+/// </summary>
+/// <param name="Topic">The topic or title of the channel</param>
+/// <param name="Modes">The list of modes applied to the channel.</param>
+[PublicAPI]
+public record ChannelData(string Topic, HashSet<ChannelMode> Modes);

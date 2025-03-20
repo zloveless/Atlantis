@@ -32,7 +32,7 @@ public class IrcClient
     private IrcConnection _connection;
 
     private readonly Dictionary<string, List<ChannelUser>> _channelUsers = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, HashSet<ChannelMode>> _channelModes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, ChannelData> _channelData = new(StringComparer.OrdinalIgnoreCase);
     
     private readonly List<string> _enabledCapabilities = [];
     private readonly SemaphoreSlim _registrationLock = new(0, 1);
@@ -155,6 +155,11 @@ public class IrcClient
     /// </summary>
     public event EventHandler<ServerFeaturesReceivedEventArgs> ServerFeaturesReceivedEvent;
 
+    /// <summary>
+    /// Raised when a channel's topic was changed. 
+    /// </summary>
+    public event EventHandler<TopicChangedEventArgs> TopicChangedEvent; 
+
     #endregion
 
     #region Methods
@@ -167,7 +172,7 @@ public class IrcClient
     /// <param name="remove">Whether or not to remove the channel mode.</param>
     private void AddOrUpdateModeOnChannel(string channel, ChannelMode channelMode, bool remove = false) 
     {
-        if (_channelModes.TryGetValue(channel, out var channelModes))
+        if (_channelData.TryGetValue(channel, out var channelData))
         {
             // Checks if the parameter for this mode is required and whether it's set.
             bool IsModeParameterRequired(ChannelMode cm) => cm.Type == ModeType.NoParam && cm.Parameter == null;
@@ -181,6 +186,7 @@ public class IrcClient
             bool DoesParameterMatch(ChannelMode cm) =>
                 IsModeParameterRequired(cm) || DoesRequiredParameterMatchProvidedParam(cm);
 
+            var channelModes = channelData.Modes;
             var current = channelModes.FirstOrDefault(cm => cm.Mode.Equals(channelMode.Mode) && DoesParameterMatch(cm));
             
             if (current != null)
@@ -188,7 +194,7 @@ public class IrcClient
                 channelModes.Remove(current);
             }
             
-            // If remove was not requested, (re-) add the mode back to the channel modes list.
+            // If remove was not requested, (re-)add the mode back to the channel modes list.
             if (!remove)
             {
                 channelModes.Add(channelMode);
@@ -196,10 +202,10 @@ public class IrcClient
         }
         else
         {
-            _channelModes[channel] =
+            _channelData[channel] = new ChannelData(string.Empty,
             [
                 channelMode
-            ];
+            ]);
         }
     }
     
@@ -404,7 +410,7 @@ public class IrcClient
         }
 
         _channelUsers.Remove(channel);
-        _channelModes.Remove(channel);
+        _channelData.Remove(channel);
     }
     
     /// <summary>
@@ -652,8 +658,8 @@ public class IrcClient
                 // TODO: Self modes. Ignored for now.
                 return;
             }
-            
-            var modes = commandParams[1];
+
+            var modes = commandParams.Length > 1 ? commandParams[1] : trailing;
             var otherParams = commandParams.Skip(2).Concat(trailing.Split(' ', StringSplitOptions.RemoveEmptyEntries)).ToArray();
             
             OnChannelMode(prefix, target, modes, otherParams);
@@ -664,6 +670,12 @@ public class IrcClient
             var target = commandParams[1];
             var comment = trailing;
             OnKick(prefix, channel, target, comment);
+        }
+        else if (command.Equals("TOPIC", StringComparison.OrdinalIgnoreCase))
+        {
+            var channel = commandParams[0];
+            var topic = trailing;
+            OnTopicChanged(channel, topic);
         }
         else
         {
@@ -852,6 +864,12 @@ public class IrcClient
                     AddOrUpdateModeOnChannel(channel, new ChannelMode(item.Mode, item.Type, item.Parameter));
                 }
             }
+        }
+        else if (numeric == 331 || numeric == 332)
+        {
+            var channel = parameters[1];
+            var topic = trailing;
+            OnTopicChanged(channel, topic);
         }
         else if (numeric == 353)
         {
@@ -1071,7 +1089,7 @@ public class IrcClient
     protected virtual void HandleReplyISupportReceived()
     {
         // Fire the event
-        OnServerFeaturesReceived(_serverFeatureSupport);
+        ServerFeaturesReceivedEvent?.Invoke(this, new ServerFeaturesReceivedEventArgs(_serverFeatureSupport));
         _serverFeatureEventFired = true;
 
         // TODO: Actually process what we need out of this here before deleting it.
@@ -1108,15 +1126,22 @@ public class IrcClient
             _chanModes = new ChannelModes(listModes, modesWithParam, modesWithParamsWhenSet, modesWithNoParam);
         }
     }
-
-    protected virtual void OnServerFeaturesReceived(IDictionary<string, string> serverFeatures)
-    {
-        ServerFeaturesReceivedEvent?.Invoke(this, new ServerFeaturesReceivedEventArgs(serverFeatures));
-    }
     
     protected virtual void OnServerNoticeReceived(string source, string message)
     {
         ServerNoticeReceivedEvent?.Invoke(this, new MessageReceivedEventArgs(message, source, notice: true));
+    }
+    
+    protected virtual void OnTopicChanged(string channel, string topic)
+    {
+        if (_channelData.TryGetValue(channel, out var channelData))
+        {
+            var oldTopic = channelData.Topic;
+            var updatedData = channelData with { Topic = topic };
+            _channelData.Remove(channel);
+            _channelData.Add(channel, updatedData);
+            TopicChangedEvent?.Invoke(this, new TopicChangedEventArgs(channel, topic, oldTopic));
+        }
     }
 
     #endregion

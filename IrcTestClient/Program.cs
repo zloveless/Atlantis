@@ -31,12 +31,18 @@ client.ConnectionEstablishedEvent += (sender, e) =>
 {
     logger.LogInformation("Connected to IRC!");
     client.Send("JOIN #genesis");
+    
 };
 
 client.KickEvent += (sender, e) =>
 {
     var source = IrcSource.FromPrefix(e.UserPrefix);
     logger.LogInformation($"*** KICK: {source} removed {e.Target} from {e.Channel} for '{e.Reason}'.");
+};
+
+client.TopicChangedEvent += (sender, e) =>
+{
+    logger.LogInformation($"*** TOPIC CHANGED({e.Channel}): Old='{e.OldTopic}', New='{e.Topic}'");
 };
 
 client.ChannelMessageReceivedEvent += (sender, e) =>
