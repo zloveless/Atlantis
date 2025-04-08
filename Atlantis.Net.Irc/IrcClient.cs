@@ -355,7 +355,7 @@ public class IrcClient
     /// <returns></returns>
     public bool SupportsCapability(string capName)
     {
-        return _enabledCapabilities.Contains(capName, StringComparer.OrdinalIgnoreCase);
+        return _enabledCapabilities.Count != 0 && _enabledCapabilities.Contains(capName, StringComparer.OrdinalIgnoreCase);
     }
 
     /// <inheritdoc cref="IrcConnection.Start" />
@@ -495,11 +495,7 @@ public class IrcClient
                 Send("CAP END");
                 
                 // Check if we're waiting, and let it finish.
-                var waiting = _registrationLock.Wait(0);
-                if (waiting)
-                {
-                    _registrationLock.Release();
-                }
+                _registrationLock.Release();
             }
             else if (subCommand.Equals("NAK", StringComparison.OrdinalIgnoreCase))
             {
