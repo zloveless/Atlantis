@@ -31,7 +31,6 @@ client.ConnectionEstablishedEvent += (sender, e) =>
 {
     logger.LogInformation("Connected to IRC!");
     client.Send("JOIN #genesis");
-    
 };
 
 client.KickEvent += (sender, e) =>
