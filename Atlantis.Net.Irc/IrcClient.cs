@@ -79,19 +79,6 @@ public class IrcClient
     }
 
     internal bool UseMultiPrefix => SupportsCapability(IrcV3Capabilities.MultiPrefix) && _multiPrefixNames != null;
-    
-    /// <summary>
-    /// Gets or sets a value indicating whether to request NAMES {channel} whenever an action (i.e., join, part, mode, etc.) occurs to affect user access.
-    /// </summary>
-    /// <remarks>
-    ///     <para>
-    ///         For what it's worth, this property is mainly for testing and debugging the client during development when I do not have all commands being processed.
-    ///     </para>
-    ///     <para>
-    ///         This property may not survive in a full release of 5.0.0 of this library.
-    ///     </para> 
-    /// </remarks>
-    public bool StrictNames { get; set; }
 
     #endregion
 
@@ -667,10 +654,6 @@ public class IrcClient
     protected virtual void OnChannelMode(string prefix, string channelName, string modeString, string[] parameters)
     {
         if (!TryGetChannel(channelName, out var channel)) return;
-        if (StrictNames)
-        {
-            Send($"NAMES {channelName}");
-        }
         
         foreach (var item in ParseChannelModes(modeString, parameters))
         {
@@ -886,11 +869,6 @@ public class IrcClient
         {
             channel.RemoveUser(userPrefix);
         }
-        
-        if (StrictNames)
-        {
-            Send($"NAMES {channelName}");
-        }
     }
     
     /// <summary>
@@ -973,11 +951,6 @@ public class IrcClient
         JoinEvent?.Invoke(this, new JoinPartEventArgs(channelName, userPrefix));
 
         var isSelf = source.Nick.Equals(_config.Nick, StringComparison.OrdinalIgnoreCase);
-        if (StrictNames || isSelf)
-        {
-            Send($"NAMES {channelName}");
-        }
-        
         if (isSelf)
         {
             Send($"MODE {channelName}");
@@ -1007,11 +980,6 @@ public class IrcClient
         if (channel.TryGetUserModes(userPrefix, out _))
         {
             channel.RemoveUser(userPrefix);
-        }
-        
-        if (StrictNames)
-        {
-            Send($"NAMES {channelName}");
         }
     }
     
