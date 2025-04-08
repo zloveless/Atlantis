@@ -51,11 +51,6 @@ public class IrcClient
     }
 
     #region Properties
-
-    /// <summary>
-    /// Gets or sets a value indicating whether to attempt registration with capabilities.
-    /// </summary>
-    public bool EnableV3 { get; set; }
     
     /// <inheritdoc cref="IrcConnection.HostName" />
     public string HostName
@@ -360,7 +355,7 @@ public class IrcClient
     /// <returns></returns>
     public bool SupportsCapability(string capName)
     {
-        return EnableV3 && _enabledCapabilities.Contains(capName, StringComparer.OrdinalIgnoreCase);
+        return _enabledCapabilities.Contains(capName, StringComparer.OrdinalIgnoreCase);
     }
 
     /// <inheritdoc cref="IrcConnection.Start" />
@@ -399,17 +394,12 @@ public class IrcClient
         {
             Send($"PASS {_config.Password}");
         }
-
-        Send($"USER {_config.Ident} 0 * :{_config.RealName}");
-        Send($"NICK {_config.Nick}");
-
-        if (!EnableV3)
-        {
-            _registrationLock.Release();
-            return;
-        }
         
         Send("CAP LS 302");
+        
+        Send($"USER {_config.Ident} 0 * :{_config.RealName}");
+        Send($"NICK {_config.Nick}");
+        
         _registrationLock.Wait();
     }
     
@@ -503,7 +493,13 @@ public class IrcClient
                 _enabledCapabilities.AddRange(confirmedCaps);
                 CapAckReceivedEvent?.Invoke(this, new CapAckReceivedEventArgs(_enabledCapabilities.ToArray()));
                 Send("CAP END");
-                _registrationLock.Release();
+                
+                // Check if we're waiting, and let it finish.
+                var waiting = _registrationLock.Wait(0);
+                if (waiting)
+                {
+                    _registrationLock.Release();
+                }
             }
             else if (subCommand.Equals("NAK", StringComparison.OrdinalIgnoreCase))
             {

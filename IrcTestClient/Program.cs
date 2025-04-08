@@ -23,8 +23,7 @@ var client = new IrcClient(config, logger)
 {
     HostName = "irc.cncirc.net",
     UseSsl = true,
-    Port = 9999,
-    EnableV3 = true
+    Port = 6697
 };
 
 client.ConnectionEstablishedEvent += (sender, e) => 
