@@ -59,12 +59,22 @@ public class IrcClient
         set => _connection.HostName = value;
     }
     
+    /// <summary>
+    /// Gets the current name used on the IrcClient.
+    /// </summary>
+    public string Nick { get; private set; }
+    
     /// <inheritdoc cref="IrcConnection.Port" />
     public short Port
     {
         get => _connection.Port;
         set => _connection.Port = value;
     }
+    
+    /// <summary>
+    /// Gets a value representing the various settings that a server supports when connected.
+    /// </summary>
+    public IrcClientSupportsSettings ServerSettings { get; private set; } = new();
     
     /// <inheritdoc cref="IrcConnection.UseSsl" />
     public bool UseSsl
@@ -73,119 +83,130 @@ public class IrcClient
         set => _connection.UseSsl = value;
     }
 
-    internal bool UseMultiPrefix => SupportsCapability(IrcV3Capabilities.MultiPrefix) && _multiPrefixNames != null;
+    internal bool UseUserHostInNames => SupportsCapability(IrcV3Capabilities.UserHostInNames);
 
     #endregion
 
     #region Events
 
     /// <summary>
-    /// Raised when CAP negotiation responds with an ACK message, confirming the requested capabilities.
+    ///     Raised when CAP negotiation responds with an ACK message, confirming the requested capabilities.
     /// </summary>
-    public event EventHandler<CapAckReceivedEventArgs> CapAckReceivedEvent; 
+    public event EventHandler<CapAckReceivedEventArgs> CapAckReceivedEvent;
 
     /// <summary>
-    /// Event fired when an IRC client connection receives numeric RPL_WELCOME (001).
+    ///     Event fired when an IRC client connection receives numeric RPL_WELCOME (001).
     /// </summary>
     public event EventHandler ConnectionEstablishedEvent;
 
     /// <summary>
-    /// Raised when the client receives a CTCP event.
+    ///     Raised when the client receives a CTCP event.
     /// </summary>
-    public event EventHandler<CtcpReceivedEventArgs> CtcpReceivedEvent; 
+    public event EventHandler<CtcpReceivedEventArgs> CtcpReceivedEvent;
 
     /// <summary>
-    /// Event fired when the IRC connection receives an ERROR command.
+    ///     Event fired when the IRC connection receives an ERROR command.
     /// </summary>
     public event EventHandler<IrcErrorEventArgs> ErrorReceivedEvent;
-    
-    /// <summary>
-    /// Raised when the client notices a PRIVMSG to a channel.
-    /// </summary>
-    public event EventHandler<MessageReceivedEventArgs> ChannelMessageReceivedEvent;
-        
-    /// <summary>
-    /// Raised when the client receives a notice from the server to which its connected. 
-    /// </summary>
-    public event EventHandler<MessageReceivedEventArgs> ServerNoticeReceivedEvent;
-    
-    /// <summary>
-    /// Raised when the client receives a PRIVMSG from another user.
-    /// </summary>
-    public event EventHandler<MessageReceivedEventArgs> PrivateMessageReceivedEvent; 
 
     /// <summary>
-    /// Event fired at the end of the MOTD transmission.
+    ///     Raised when the client notices a PRIVMSG to a channel.
+    /// </summary>
+    public event EventHandler<MessageReceivedEventArgs> ChannelMessageReceivedEvent;
+
+    /// <summary>
+    ///     Raised when the client receives a notice from the server to which its connected.
+    /// </summary>
+    public event EventHandler<MessageReceivedEventArgs> ServerNoticeReceivedEvent;
+
+    /// <summary>
+    ///     Raised when the client receives a PRIVMSG from another user.
+    /// </summary>
+    public event EventHandler<MessageReceivedEventArgs> PrivateMessageReceivedEvent;
+
+    /// <summary>
+    ///     Event fired at the end of the MOTD transmission.
     /// </summary>
     public event EventHandler<MotdEventArgs> MotdReceivedEvent;
 
     /// <summary>
-    /// Raised when a user joins a channel being monitored by the IrcClient.
+    ///     Raised when a user joins a channel being monitored by the IrcClient.
     /// </summary>
     public event EventHandler<JoinPartEventArgs> JoinEvent;
-    
+
     /// <summary>
-    /// Raised when a user leaves a channel being monitored by the IrcClient.
+    ///     Raised when a user leaves a channel being monitored by the IrcClient.
     /// </summary>
     public event EventHandler<JoinPartEventArgs> PartEvent;
 
     /// <summary>
-    /// Raised when a user is forcefully removed from a channel.
+    ///     Raised when a user is forcefully removed from a channel.
     /// </summary>
-    public event EventHandler<KickEventArgs> KickEvent; 
+    public event EventHandler<KickEventArgs> KickEvent;
 
     /// <summary>
-    /// Event fired after the last RPL_ISUPPORT (005) line received. Multiple lines buffered into a single event fire.
+    ///     Event fired after the last RPL_ISUPPORT (005) line received. Multiple lines buffered into a single event fire.
     /// </summary>
     public event EventHandler<ServerFeaturesReceivedEventArgs> ServerFeaturesReceivedEvent;
 
     /// <summary>
-    /// Raised when a channel's topic was changed. 
+    ///     Raised when a channel's topic was changed.
     /// </summary>
-    public event EventHandler<TopicChangedEventArgs> TopicChangedEvent; 
+    public event EventHandler<TopicChangedEventArgs> TopicChangedEvent;
 
     #endregion
 
     #region Methods
 
     /// <summary>
-    /// Adds a new or updates an existing channel mode to the internal registrar.
+    ///     Adds a new or updates an existing channel mode to the internal registrar.
     /// </summary>
     /// <param name="channelName"></param>
     /// <param name="channelMode"></param>
     /// <param name="remove">Whether or not to remove the channel mode.</param>
     private void AddOrUpdateModeOnChannel(string channelName, ChannelMode channelMode, bool remove = false)
     {
-        if (!_channels.TryGetValue(channelName, out var channel)) return;
+        if (!_channels.TryGetValue(channelName, out var channel))
+        {
+            return;
+        }
 
         // Checks if the parameter for this mode is required and whether it's set.
-        bool IsModeParameterRequired(ChannelMode cm) => cm.Type == ModeType.NoParam && cm.Parameter == null;
+        bool IsModeParameterRequired(ChannelMode cm)
+        {
+            return cm.Type == ModeType.NoParam && cm.Parameter == null;
+        }
 
         // Checks whether the parameter is NOT null and if it matches the provided parameter.
-        bool DoesRequiredParameterMatchProvidedParam(ChannelMode cm) => cm.Parameter != null &&
-                                                                        cm.Parameter.Equals(channelMode.Parameter,
-                                                                            StringComparison.OrdinalIgnoreCase);
-            
+        bool DoesRequiredParameterMatchProvidedParam(ChannelMode cm)
+        {
+            return cm.Parameter != null &&
+                   cm.Parameter.Equals(channelMode.Parameter,
+                       StringComparison.OrdinalIgnoreCase);
+        }
+
         // Checks if the parameter is required and whether it matches the provided channelMode 
-        bool DoesParameterMatch(ChannelMode cm) =>
-            IsModeParameterRequired(cm) || DoesRequiredParameterMatchProvidedParam(cm);
+        bool DoesParameterMatch(ChannelMode cm)
+        {
+            return IsModeParameterRequired(cm) || DoesRequiredParameterMatchProvidedParam(cm);
+        }
 
         var current =
             channel.Modes.FirstOrDefault(cm => cm.Mode.Equals(channelMode.Mode) && DoesParameterMatch(cm));
-            
+
         if (current != null)
         {
             channel.Modes.Remove(current);
         }
-            
+
         if (!remove)
         {
             channel.Modes.Add(channelMode);
         }
     }
-            
+
     /// <summary>
-    /// Returns a value whether or not the specified target is a channel name or not.
+    ///     Returns a value whether or not the specified target is a channel name or not.
     /// </summary>
     /// <param name="target">The name to check whether its a channel.</param>
     /// <returns>Whether the specified target is a channel according to the received prefixes.</returns>
@@ -195,68 +216,96 @@ public class IrcClient
     }
 
     /// <summary>
-    /// Gets a user's channel modes for the specified channel.
+    ///     Returns whether the specified user prefix or name is the current <see cref="IrcClient" />.
+    /// </summary>
+    /// <param name="userPrefix">The nick!ident@host prefix of the user to check.</param>
+    /// <returns>true if the specified prefix is indeed the current <see cref="IrcClient" />.</returns>
+    private bool IsMe(string userPrefix)
+    {
+        var source = IrcSource.FromPrefix(userPrefix);
+        return source.Nick.StartsWith(Nick);
+    }
+
+    /// <summary>
+    ///     Gets a user's channel modes for the specified channel.
     /// </summary>
     /// <param name="channelName">The channel to look up a user's access level.</param>
     /// <param name="userPrefix">The requested user's full prefix when looking up their access.</param>
-    /// <exception cref="ArgumentNullException">Thrown when either of the two arguments are invalid values such as null or empty strings.</exception>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when the specified channel does not exist in the <see cref="IrcClient" />'s internal channel registrar.</exception>
+    /// <exception cref="ArgumentNullException">
+    ///     Thrown when either of the two arguments are invalid values such as null or
+    ///     empty strings.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    ///     Thrown when the specified channel does not exist in the
+    ///     <see cref="IrcClient" />'s internal channel registrar.
+    /// </exception>
     /// <returns>The user's mode prefixes</returns>
-    public string GetChannelUserModes(string channelName, string userPrefix) 
+    public string GetChannelUserModes(string channelName, string userPrefix)
     {
         if (string.IsNullOrEmpty(channelName))
         {
             throw new ArgumentNullException(nameof(channelName));
         }
-        
+
         if (string.IsNullOrEmpty(userPrefix))
         {
             throw new ArgumentNullException(nameof(userPrefix));
         }
-        
+
         if (!_channels.ContainsKey(channelName))
         {
             throw new ArgumentOutOfRangeException(nameof(channelName));
         }
 
-        if (!_channels.TryGetValue(channelName, out var channel)) return string.Empty;
+        if (!_channels.TryGetValue(channelName, out var channel))
+        {
+            return string.Empty;
+        }
+
         return channel.TryGetUserModes(userPrefix, out var channelUser) ? channelUser.Modes : string.Empty;
     }
 
     /// <summary>
-    /// Returns a <see cref="ChannelUser" /> if they exist on the channel.
+    ///     Returns a <see cref="ChannelUser" /> if they exist on the channel.
     /// </summary>
     /// <param name="channelName"></param>
     /// <param name="userName"></param>
     /// <returns></returns>
     /// <exception cref="ArgumentNullException"></exception>
     /// <exception cref="ArgumentOutOfRangeException"></exception>
-    private ChannelUser? FindUserInChannel(string channelName, string userName) 
+    private ChannelUser? FindUserInChannel(string channelName, string userName)
     {
         if (string.IsNullOrEmpty(channelName))
         {
             throw new ArgumentNullException(nameof(channelName));
         }
-        
+
         if (string.IsNullOrEmpty(userName))
         {
             throw new ArgumentNullException(nameof(userName));
         }
-        
+
         return _channels.TryGetValue(channelName, out var channel) ? channel.FindUser(userName) : null;
     }
 
     /// <summary>
-    /// Gets a Channel reference from the specified key.
+    ///     Gets a Channel reference from the specified key.
     /// </summary>
     /// <param name="channelName">The channel name to lookup.</param>
-    /// <param name="value">When this method returns true if a channel is found, contains the Channel reference for the specified channel key.</param>
+    /// <param name="value">
+    ///     When this method returns true if a channel is found, contains the Channel reference for the
+    ///     specified channel key.
+    /// </param>
     /// <param name="createNew">Creates the channel if true and it doesn't exist.</param>
-    /// <returns>true if the <see cref="IrcClient"/> contains the channel reference, otherwise false</returns>
+    /// <returns>true if the <see cref="IrcClient" /> contains the channel reference, otherwise false</returns>
     public bool TryGetChannel(string channelName, [MaybeNullWhen(false)] out Channel value, bool createNew = false)
     {
         var exists = _channels.TryGetValue(channelName, out value);
-        if (exists || !createNew) return exists;
+        if (exists || !createNew)
+        {
+            return exists;
+        }
+
         exists = createNew;
 
         var result = AddChannel(channelName);
@@ -265,19 +314,28 @@ public class IrcClient
     }
 
     /// <summary>
-    /// Returns an enumerable of channel modes from mode strings and parameters received from a MODE command.
+    ///     Returns an enumerable of channel modes from mode strings and parameters received from a MODE command.
     /// </summary>
-    /// <param name="modes">A complete mode string containing alpha-characters and +/- symbols, indicating setting modes on a channel.</param>
+    /// <param name="modes">
+    ///     A complete mode string containing alpha-characters and +/- symbols, indicating setting modes on a
+    ///     channel.
+    /// </param>
     /// <param name="parameters">The parameters for all the modes received in the event.</param>
     /// <returns>An enumerable of modes, allowing processing as modes are returned from the method.</returns>
-    protected IEnumerable<GenericMode> ParseChannelModes(string modes, params string[] parameters) 
+    protected IEnumerable<GenericMode> ParseChannelModes(string modes, params string[] parameters)
     {
         var set = false;
         for (int modeIndex = 0, parameterIndex = 0; modeIndex < modes.Length; ++modeIndex)
         {
             // ReSharper disable once ConvertIfStatementToSwitchStatement
-            if (modes[modeIndex] == '+') set = true;
-            else if (modes[modeIndex] == '-') set = false;
+            if (modes[modeIndex] == '+')
+            {
+                set = true;
+            }
+            else if (modes[modeIndex] == '-')
+            {
+                set = false;
+            }
             else if (_chanModes.ListModes.Contains(modes[modeIndex]))
             {
                 var arg = parameters[parameterIndex];
@@ -315,7 +373,7 @@ public class IrcClient
     }
 
     /// <summary>
-    /// Adds and returns the specified channel to the internal channel registry
+    ///     Adds and returns the specified channel to the internal channel registry
     /// </summary>
     /// <param name="channelName"></param>
     /// <returns></returns>
@@ -325,48 +383,76 @@ public class IrcClient
         {
             throw new ArgumentException($"The specified 'channel' is invalid: {channelName}", nameof(channelName));
         }
-        
-        if (_channels.TryGetValue(channelName, out var channel)) return channel;
-        
+
+        if (_channels.TryGetValue(channelName, out var channel))
+        {
+            return channel;
+        }
+
         var result = new Channel(channelName, this);
         _channels.Add(channelName, result);
         return result;
     }
 
     /// <summary>
-    /// Removes the specified channel from being tracked by the client.
+    ///     Removes the specified channel from being tracked by the client.
     /// </summary>
     /// <param name="channelName"></param>
     /// <exception cref="ArgumentException"></exception>
-    protected void RemoveChannel(string channelName) 
+    protected void RemoveChannel(string channelName)
     {
         if (!IsChannelName(channelName))
         {
             throw new ArgumentException($"The specified 'channel' is invalid: {channelName}", nameof(channelName));
         }
-        
+
         _channels.Remove(channelName);
     }
-    
+
     /// <summary>
-    /// Returns whether or not the specified capability is supported by the current <see cref="IrcClient" />.
+    ///     Sets the <see cref="IrcClient" />'s name.
+    /// </summary>
+    /// <param name="userName"></param>
+    public void SetNick(string userName)
+    {
+        if (ServerSettings.NickLength > 0 && userName.Length > ServerSettings.NickLength)
+        {
+            // ReSharper disable once ReplaceSubstringWithRangeIndexer
+            userName = userName.Substring(0, ServerSettings.NickLength);
+        }
+
+        if (Nick.Equals(userName, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        Send($"NICK {userName}");
+        Nick = userName;
+    }
+
+    /// <summary>
+    ///     Returns whether or not the specified capability is supported by the current <see cref="IrcClient" />.
     /// </summary>
     /// <param name="capName"></param>
     /// <returns></returns>
     public bool SupportsCapability(string capName)
     {
-        return _enabledCapabilities.Count != 0 && _enabledCapabilities.Contains(capName, StringComparer.OrdinalIgnoreCase);
+        return _enabledCapabilities.Count != 0 &&
+               _enabledCapabilities.Contains(capName, StringComparer.OrdinalIgnoreCase);
     }
 
     /// <inheritdoc cref="IrcConnection.Start" />
-    public Task<bool> Start() => _connection.Start();
+    public Task<bool> Start()
+    {
+        return _connection.Start();
+    }
 
     /// <inheritdoc cref="IrcConnection.Stop" />
     public async Task<bool> Stop(string? reason = null)
     {
         reason = reason == null ? string.Empty : string.Concat(" :", reason);
         await SendAsync($"QUIT {reason}");
-        
+
         return await _connection.Stop();
     }
 
@@ -388,63 +474,64 @@ public class IrcClient
 
     #region Handlers and Callbacks
 
-    protected virtual void OnConnect() 
+    protected virtual void OnConnect()
     {
         if (!string.IsNullOrEmpty(_config.Password))
         {
             Send($"PASS {_config.Password}");
         }
-        
+
         Send("CAP LS 302");
         
         Send($"USER {_config.Ident} 0 * :{_config.RealName}");
         Send($"NICK {_config.Nick}");
-        
+
+        Nick = _config.Nick;
         _registrationLock.Wait();
     }
-    
+
     /// <summary>
-    /// Processes incoming data received from the socket.
+    ///     Processes incoming data received from the socket.
     /// </summary>
     /// <param name="data">The raw data line received.</param>
-    protected virtual void OnDataReceived(string data) 
+    protected virtual void OnDataReceived(string data)
     {
         if (data.StartsWith("PING", StringComparison.OrdinalIgnoreCase))
         {
             var response = data.Substring(data.IndexOf(':') + 1);
             Send("PONG {0}", response);
-            
+
             // Early exit. We've already responded to PING
             // so we don't need to process anymore!
             return;
         }
-        
+
         string? prefix = null;
         string? trailing = null;
-        
+
         var prefixEnd = -1;
         var trailingStart = -1;
         var tags = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        
+
         if (data.StartsWith('@'))
         {
             var nextToken = data.IndexOf(' ');
             var kvp = data.Substring(1, nextToken);
-            var dict = kvp.Split(';').Select(item => item.Split('=', count: 2))
+            var dict = kvp.Split(';').Select(item => item.Split('=', 2))
                           .ToDictionary(k => k[0], v => v.Length > 1 ? v[1] : string.Empty);
-            
+
             foreach (var item in dict)
             {
                 tags[item.Key] = item.Value;
             }
-            
+
             // free the memory, theoretically
             dict.Clear();
-            
+
             // Reset the incoming data so we don't have to modify the parsing code below.
             data = data.Substring(nextToken + 1);
         }
-        
+
         if (data.StartsWith(':'))
         {
             prefixEnd = data.IndexOf(' ');
@@ -457,15 +544,16 @@ public class IrcClient
             trailing = data.Substring(trailingStart + 2);
         }
 
-        var commandSeq = data.Substring(prefixEnd + 1, (trailingStart == -1 ? data.Length : trailingStart) - (prefixEnd + 1));
+        var commandSeq = data.Substring(prefixEnd + 1,
+            (trailingStart == -1 ? data.Length : trailingStart) - (prefixEnd + 1));
         var parts = commandSeq.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        
+
         if (parts.Length == 0)
         {
             _logger?.LogDebug($"*** Invalid data received! {data}");
             return;
         }
-        
+
         var command = parts[0];
         var commandParams = parts.Skip(1).ToArray();
 
@@ -479,12 +567,15 @@ public class IrcClient
             if (subCommand.Equals("LS", StringComparison.OrdinalIgnoreCase))
             {
                 // We're waiting for registration to complete, so this is a priority response.
-                if (RequestedCapabilities.Count == 0) return;
-                
+                if (RequestedCapabilities.Count == 0)
+                {
+                    return;
+                }
+
                 var availableCaps = trailing!.Split(' ').ToArray();
                 // First get a list of capabilities that we can request and are available
                 var req = RequestedCapabilities.Intersect(availableCaps).ToArray();
-                    
+
                 Send($"CAP REQ :{string.Join(' ', req)}");
             }
             else if (subCommand.Equals("ACK", StringComparison.OrdinalIgnoreCase))
@@ -493,7 +584,7 @@ public class IrcClient
                 _enabledCapabilities.AddRange(confirmedCaps);
                 CapAckReceivedEvent?.Invoke(this, new CapAckReceivedEventArgs(_enabledCapabilities.ToArray()));
                 Send("CAP END");
-                
+
                 // Check if we're waiting, and let it finish.
                 _registrationLock.Release();
             }
@@ -525,16 +616,17 @@ public class IrcClient
             OnCommand(command, prefix!, trailing!, commandParams, tags);
         }
     }
-    
+
     /// <summary>
-    /// Processes an IRC command received from the IRC server.
+    ///     Processes an IRC command received from the IRC server.
     /// </summary>
     /// <param name="command">The base command received, i.e., PRIVMSG, NOTICE, etc.</param>
     /// <param name="prefix">The source of the command.</param>
     /// <param name="trailing">The value after the command's parameters, marked by a colon.</param>
     /// <param name="commandParams">An array of parameters between the command and its trailing data.</param>
     /// <param name="tags">Any message tags received with the command.</param>
-    protected virtual void OnCommand(string command, string prefix, string trailing, string[] commandParams, IDictionary<string, string> tags) 
+    protected virtual void OnCommand(string command, string prefix, string trailing, string[] commandParams,
+        IDictionary<string, string> tags)
     {
         if (command.Equals("PRIVMSG", StringComparison.OrdinalIgnoreCase)
             && trailing.StartsWith('\x01') && trailing.EndsWith('\x01'))
@@ -557,7 +649,11 @@ public class IrcClient
         {
             // TODO: Handle CTCP replies eventually.
             // Ignore CTCP replies FOR NOW.
-            if (trailing.StartsWith('\x01') && trailing.EndsWith('\x01')) return;
+            if (trailing.StartsWith('\x01') && trailing.EndsWith('\x01'))
+            {
+                return;
+            }
+
             if (!prefix.Contains('!'))
             {
                 OnServerNoticeReceived(prefix, trailing);
@@ -567,11 +663,11 @@ public class IrcClient
             var target = commandParams[0];
             if (IsChannelName(target))
             {
-                OnChannelMessageReceived(prefix, target, trailing, notice: true, tags);
+                OnChannelMessageReceived(prefix, target, trailing, true, tags);
             }
             else
             {
-                OnPrivateMessageReceived(prefix, trailing, notice: true, tags);
+                OnPrivateMessageReceived(prefix, trailing, true, tags);
             }
         }
         else if (command.Equals("JOIN", StringComparison.OrdinalIgnoreCase))
@@ -592,8 +688,9 @@ public class IrcClient
             }
 
             var modes = commandParams.Length > 1 ? commandParams[1] : trailing;
-            var otherParams = commandParams.Skip(2).Concat(trailing.Split(' ', StringSplitOptions.RemoveEmptyEntries)).ToArray();
-            
+            var otherParams = commandParams.Skip(2).Concat(trailing.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+                                           .ToArray();
+
             OnChannelMode(prefix, target, modes, otherParams);
         }
         else if (command.Equals("KICK", StringComparison.OrdinalIgnoreCase))
@@ -614,9 +711,9 @@ public class IrcClient
             _logger?.LogDebug($"<- ({prefix}) {command} [{string.Join(", ", commandParams)}] ({trailing})");
         }
     }
-    
+
     /// <summary>
-    /// Handles the welcome packet (numeric 001) received from the IRC server.
+    ///     Handles the welcome packet (numeric 001) received from the IRC server.
     /// </summary>
     protected virtual void OnConnectionEstablished()
     {
@@ -624,20 +721,21 @@ public class IrcClient
     }
 
     /// <summary>
-    /// Handles a message event received from the IRC server targeting a channel.
+    ///     Handles a message event received from the IRC server targeting a channel.
     /// </summary>
     /// <param name="prefix">The source of the message.</param>
     /// <param name="channel">The target channel of the message.</param>
     /// <param name="message">The message itself.</param>
     /// <param name="notice">Whether or not the message was a NOTICE or PRIVMSG.</param>
     /// <param name="tags">Any tags that the message contained.</param>
-    protected virtual void OnChannelMessageReceived(string prefix, string channel, string message, bool notice = false, IDictionary<string, string>? tags = null)
+    protected virtual void OnChannelMessageReceived(string prefix, string channel, string message, bool notice = false,
+        IDictionary<string, string>? tags = null)
     {
         ChannelMessageReceivedEvent?.Invoke(this, new MessageReceivedEventArgs(message, prefix, channel, notice, tags));
     }
 
     /// <summary>
-    /// Processes modes applied to a channel from a user.
+    ///     Processes modes applied to a channel from a user.
     /// </summary>
     /// <param name="prefix"></param>
     /// <param name="channelName"></param>
@@ -645,18 +743,24 @@ public class IrcClient
     /// <param name="parameters"></param>
     protected virtual void OnChannelMode(string prefix, string channelName, string modeString, string[] parameters)
     {
-        if (!TryGetChannel(channelName, out var channel)) return;
-        
+        if (!TryGetChannel(channelName, out var channel))
+        {
+            return;
+        }
+
         foreach (var item in ParseChannelModes(modeString, parameters))
         {
             if (item.Type == ModeType.Access)
             {
                 // Bail (continue) if we can't find the user.
-                if (!channel.TryGetUserModes(item.Parameter, out var channelUser)) continue;
-                
+                if (!channel.TryGetUserModes(item.Parameter, out var channelUser))
+                {
+                    continue;
+                }
+
                 var prefixIdx = _prefixModes.IndexOf(item.Mode);
                 var prefixSymbol = _prefixSymbols[prefixIdx];
-                
+
                 var modes = channelUser.Modes;
                 if (string.IsNullOrEmpty(modes))
                 {
@@ -664,35 +768,40 @@ public class IrcClient
                 }
 
                 modes = item.IsSet ? modes += prefixSymbol : modes.Replace(prefixSymbol.ToString(), string.Empty);
-                
+
                 // Reorder the modes according to RPL_ISUPPORT's order.
                 // 
                 // By doing so, the user can simply taking modes[0] and be assured
                 // that they have they highest access for the user.
                 modes = new string(modes.OrderBy(ch => _prefixSymbols.IndexOf(ch)).Distinct().ToArray());
-                
+
                 channel.AddOrUpdateUser(channelUser.User, modes);
             }
             else
             {
-                AddOrUpdateModeOnChannel(channelName, new ChannelMode(item.Mode, item.Type, item.Parameter), remove: !item.IsSet);
+                AddOrUpdateModeOnChannel(channelName, new ChannelMode(item.Mode, item.Type, item.Parameter),
+                    !item.IsSet);
             }
         }
     }
-    
+
     /// <summary>
-    /// Processes simple client-to-client protocol (CTCP) messages excluding DCC events, primarily for IRC security scans that look for valid version replies. 
+    ///     Processes simple client-to-client protocol (CTCP) messages excluding DCC events, primarily for IRC security scans
+    ///     that look for valid version replies.
     /// </summary>
     /// <param name="prefix">The source of the CTCP event.</param>
     /// <param name="ctcpEvent">The CTCP event name.</param>
     protected virtual void OnCtcpReceived(string prefix, string ctcpEvent)
     {
         // Filter out DCC requests.
-        if (ctcpEvent.StartsWith("DCC", StringComparison.OrdinalIgnoreCase)) return;
+        if (ctcpEvent.StartsWith("DCC", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
 
         var source = IrcSource.FromPrefix(prefix);
-        var ctcpParams = string.Empty; 
-        
+        var ctcpParams = string.Empty;
+
         if (ctcpEvent.Contains(' '))
         {
             ctcpParams = ctcpEvent.Substring(ctcpEvent.IndexOf(' ') + 1);
@@ -704,16 +813,19 @@ public class IrcClient
             _logger?.LogWarning($"Unrecognized CTCP event? {ctcpEvent} (from {prefix})");
             return;
         }
-        
+
         var args = new CtcpReceivedEventArgs(prefix, ctcp);
         CtcpReceivedEvent?.Invoke(this, args);
-        
+
         string response;
         if (args.Cancel && !string.IsNullOrEmpty(args.Message))
         {
             response = args.Message;
         }
-        else if (args.Cancel) return;
+        else if (args.Cancel)
+        {
+            return;
+        }
         else
         {
             switch (ctcp)
@@ -736,28 +848,30 @@ public class IrcClient
 
         Send($"NOTICE {source} :\x01{ctcp.ToString().ToUpper()} {response}\x01");
     }
-    
+
     /// <summary>
-    /// Handles errors detected in the IRC stream, usually via an ERROR command but some internal errors are filtered through this.
+    ///     Handles errors detected in the IRC stream, usually via an ERROR command but some internal errors are filtered
+    ///     through this.
     /// </summary>
     /// <param name="message">The error message received.</param>
     protected virtual void OnError(string message)
     {
         ErrorReceivedEvent?.Invoke(this, new IrcErrorEventArgs(message));
     }
-    
+
     /// <summary>
-    /// Processes IRC numerics received from the IRC server.
+    ///     Processes IRC numerics received from the IRC server.
     /// </summary>
     /// <param name="numeric">The numeric identifier.</param>
     /// <param name="prefix">The source of the numeric, likely a server.</param>
     /// <param name="trailing">The trailing data after the numeric's parameters, marked by a colon.</param>
     /// <param name="parameters">The parameters between the numeric and its trailing data.</param>
     /// <param name="tags">Any message tags associated with the message.</param>
-    protected virtual void OnIrcNumeric(int numeric, string prefix, string trailing, string[] parameters, IDictionary<string, string> tags)
-    {        
+    protected virtual void OnIrcNumeric(int numeric, string prefix, string trailing, string[] parameters,
+        IDictionary<string, string> tags)
+    {
         // ReSharper disable once ConvertIfStatementToSwitchStatement
-        if (numeric == 1) 
+        if (numeric == 1)
         {
             OnConnectionEstablished();
         }
@@ -766,7 +880,7 @@ public class IrcClient
             var channel = parameters[1];
             string modeString;
             string[] modeParams;
-            
+
             if (parameters.Length == 2)
             {
                 modeString = trailing;
@@ -779,10 +893,11 @@ public class IrcClient
             }
             else
             {
-                throw new InvalidOperationException($"Unknown case of numeric 324: {string.Join(',', parameters)} -> {trailing}");
+                throw new InvalidOperationException(
+                    $"Unknown case of numeric 324: {string.Join(',', parameters)} -> {trailing}");
             }
-            
-            foreach(var item in ParseChannelModes(modeString, modeParams)) 
+
+            foreach (var item in ParseChannelModes(modeString, modeParams))
             {
                 if (item.Type != ModeType.Access && item.Type != ModeType.User)
                 {
@@ -815,10 +930,10 @@ public class IrcClient
             //   Skip the client name, then split the parameters into key value pairs,
             // setting singular values as keys with empty values.
             var serverSettings = parameters.Skip(1)
-                                           .Select(item => item.Split('=', count: 2))
+                                           .Select(item => item.Split('=', 2))
                                            .ToDictionary(item => item[0],
                                                item => item.Length > 1 ? item[1] : string.Empty);
-                
+
             // Reassign and merge the server features dictionary with the updated list we just received. 
             _serverFeatureSupport = _serverFeatureSupport.Concat(serverSettings)
                                                          .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
@@ -834,12 +949,12 @@ public class IrcClient
             var paramList = string.Join(", ", parameters);
             _logger?.LogDebug($"<- {numeric:000} ({source}) ({paramList}): {trailing}");
         }
-            
+
         _lastNumeric = numeric;
     }
-    
+
     /// <summary>
-    /// Handles kick events received from the IRC server.
+    ///     Handles kick events received from the IRC server.
     /// </summary>
     /// <param name="userPrefix">The source of the kick event.</param>
     /// <param name="channelName">The channel where the kick event originated.</param>
@@ -848,43 +963,46 @@ public class IrcClient
     protected virtual void OnKick(string userPrefix, string channelName, string target, string reason)
     {
         KickEvent?.Invoke(this, new KickEventArgs(channelName, userPrefix, target, reason));
-        
+
         // Similar to PART, if the target of this event is the client, just unregister the channel.
-        var isSelf = target.Equals(_config.Nick, StringComparison.OrdinalIgnoreCase);
-        if (isSelf)
+        if (target.Equals(Nick, StringComparison.OrdinalIgnoreCase))
         {
             RemoveChannel(channelName);
             return;
         }
-        
+
         if (_channels.TryGetValue(channelName, out var channel))
         {
             channel.RemoveUser(userPrefix);
         }
     }
-    
+
     /// <summary>
-    /// Fires off the event for when the server sends the end numeric for message of the day.
+    ///     Fires off the event for when the server sends the end numeric for message of the day.
     /// </summary>
     /// <param name="motd">The message of the day buffer.</param>
-    protected virtual void OnMotdReceived(string motd) 
+    protected virtual void OnMotdReceived(string motd)
     {
         MotdReceivedEvent?.Invoke(this, new MotdEventArgs(motd));
     }
 
     /// <summary>
-    /// Processes a list of names and prefixes for a specified channel.
+    ///     Processes a list of names and prefixes for a specified channel.
     /// </summary>
     /// <param name="channelName">The channel in which this nick list.</param>
     /// <param name="nickList">The list of nicks and prefixes.</param>
     /// <exception cref="InvalidOperationException"></exception>
     protected virtual void OnNamesReplyReceived(string channelName, string nickList)
     {
-        if (!TryGetChannel(channelName, out var channel)) return;
+        if (!TryGetChannel(channelName, out var channel))
+        {
+            return;
+        }
+
         if (SupportsCapability(IrcV3Capabilities.MultiPrefix) && _multiPrefixNames != null)
         {
             var matches = _multiPrefixNames.Matches(nickList);
-            foreach (Match m in matches) 
+            foreach (Match m in matches)
             {
                 // little magic strings - not pretty but works.
                 channel.AddOrUpdateUser(m.Groups["prefix"].ToString(), m.Groups["access"].ToString());
@@ -892,7 +1010,8 @@ public class IrcClient
         }
         else if (_multiPrefixNames == null)
         {
-            throw new InvalidOperationException("IRCv3 multi-prefix capability enabled, but the regex is unset.");
+            throw new InvalidOperationException(
+                "IRCv3 multi-prefix capability enabled, but the regex is unset. Internal error.");
         }
         else
         {
@@ -917,100 +1036,111 @@ public class IrcClient
             }
         }
     }
-    
+
     /// <summary>
-    /// Represents a core event handler that processes a user joining a channel the <see cref="IrcClient" /> monitors.
+    ///     Represents a core event handler that processes a user joining a channel the <see cref="IrcClient" /> monitors.
     /// </summary>
     /// <param name="channelName"></param>
     /// <param name="userPrefix"></param>
     protected virtual void OnJoin(string channelName, string userPrefix)
     {
-        // Because we create the channel, this will always return true if the 
-        if (!TryGetChannel(channelName, out var channel, createNew: true)) return;
+        var channel = AddChannel(channelName);
+        if (!channel.TryGetUserModes(userPrefix, out _))
+        {
+            channel.AddOrUpdateUser(userPrefix);
+        }
 
-        var source = IrcSource.FromPrefix(userPrefix);
-        var nick = userPrefix;
-        if (!SupportsCapability(IrcV3Capabilities.UserHostInNames))
-        {
-            nick = source.Nick;
-        }
-        
-        if (!channel.TryGetUserModes(nick, out _))
-        {
-            channel.AddOrUpdateUser(nick);
-        }
-        
         JoinEvent?.Invoke(this, new JoinPartEventArgs(channelName, userPrefix));
 
-        var isSelf = source.Nick.Equals(_config.Nick, StringComparison.OrdinalIgnoreCase);
-        if (isSelf)
+        if (!IsMe(userPrefix))
         {
-            Send($"MODE {channelName}");
+            return;
         }
+
+        // If this is the client joining a channel, request names and channel modes.
+
+        // Technically we're not even requesting this capability, so this always passes.
+        // TODO: When CAP NAK is rewritten to request one at a time, include draft/no-implicit-names.
+        //      This capability makes it so that the IRCd does not send NAMES upon joining a channel
+        //      and requires the client to request it if they want it.
+        if (!SupportsCapability(IrcV3Capabilities.DraftNoImplicitNames))
+        {
+            Send($"NAMES {channelName}");
+        }
+
+        Send($"MODE {channelName}");
     }
-    
+
     /// <summary>
-    /// Represents a core event handler that processes a user leaving a channel the <see cref="IrcClient" /> monitors.
+    ///     Represents a core event handler that processes a user leaving a channel the <see cref="IrcClient" /> monitors.
     /// </summary>
     /// <param name="channelName"></param>
     /// <param name="userPrefix"></param>
-    protected virtual void OnPart(string channelName, string userPrefix) 
+    protected virtual void OnPart(string channelName, string userPrefix)
     {
         // Fire the event event regardless if it's us.
         PartEvent?.Invoke(this, new JoinPartEventArgs(channelName, userPrefix));
-        var source = IrcSource.FromPrefix(userPrefix);
-        
-        var isSelf = source.Nick.Equals(_config.Nick, StringComparison.OrdinalIgnoreCase);
-        if (isSelf)
+
+        if (IsMe(userPrefix))
         {
             // If this is us leaving a channel, just remove it.
             RemoveChannel(channelName);
             return;
         }
 
-        if (!TryGetChannel(channelName, out var channel)) return;
+        if (!TryGetChannel(channelName, out var channel))
+        {
+            return;
+        }
+
         if (channel.TryGetUserModes(userPrefix, out _))
         {
             channel.RemoveUser(userPrefix);
         }
     }
-    
-    protected virtual void OnPrivateMessageReceived(string prefix, string message, bool notice = false, IDictionary<string, string>? tags = null) 
+
+    protected virtual void OnPrivateMessageReceived(string prefix, string message, bool notice = false,
+        IDictionary<string, string>? tags = null)
     {
         PrivateMessageReceivedEvent?.Invoke(this, new MessageReceivedEventArgs(message, prefix, notice, tags));
     }
 
     protected virtual void HandleReplyISupportReceived()
     {
-        // Fire the event
-        ServerFeaturesReceivedEvent?.Invoke(this, new ServerFeaturesReceivedEventArgs(_serverFeatureSupport));
+        // Fire the event if it hasn't already been fired.
+        if (!_serverFeatureEventFired)
+        {
+            ServerFeaturesReceivedEvent?.Invoke(this, new ServerFeaturesReceivedEventArgs(_serverFeatureSupport));
+        }
+
         _serverFeatureEventFired = true;
 
-        // TODO: Actually process what we need out of this here before deleting it.
-        // Process RPL_ISUPPORT for our needs here
         if (_serverFeatureSupport.TryGetValue("CHANTYPES", out var channelTypes))
         {
             _channelTypes = channelTypes;
         }
-        
+
         if (_serverFeatureSupport.TryGetValue("PREFIX", out var prefix))
         {
             var endModesToken = prefix.IndexOf(')');
             _prefixModes = prefix.Substring(1, endModesToken - 1);
             _prefixSymbols = prefix.Substring(endModesToken + 1);
-            
+
             if (SupportsCapability(IrcV3Capabilities.MultiPrefix) && _multiPrefixNames == null)
             {
                 _multiPrefixNames = new Regex(@$"(?<access>[{_prefixSymbols}]*)(?<prefix>\S+)", RegexOptions.Compiled);
             }
         }
-        
+
         if (_serverFeatureSupport.TryGetValue("CHANMODES", out var cModes))
         {
             var chanModes = cModes.Split(',');
-            
+
             // Invalid sequence
-            if (chanModes.Length != 4) return;
+            if (chanModes.Length != 4)
+            {
+                return;
+            }
 
             var listModes = chanModes[0];
             var modesWithParam = chanModes[1];
@@ -1019,20 +1149,47 @@ public class IrcClient
 
             _chanModes = new ChannelModes(listModes, modesWithParam, modesWithParamsWhenSet, modesWithNoParam);
         }
+
+        // Dump the data the client might need to care about into our supports setting.
+        if (_serverFeatureSupport.TryGetValue("NICKLEN", out var nickLengthStr))
+        {
+            if (short.TryParse(nickLengthStr, out var nickLength))
+            {
+                ServerSettings = ServerSettings with { NickLength = nickLength };
+            }
+        }
+
+        if (_serverFeatureSupport.TryGetValue("AWAYLEN", out var awayLengthStr))
+        {
+            if (short.TryParse(awayLengthStr, out var awayLength))
+            {
+                ServerSettings = ServerSettings with { AwayLength = awayLength };
+            }
+        }
+
+        if (_serverFeatureSupport.TryGetValue("NETWORK", out var networkName))
+        {
+            ServerSettings = ServerSettings with { Network = networkName };
+        }
+
+        if (_serverFeatureSupport.TryGetValue("BOT", out var botModeStr))
+        {
+            ServerSettings = ServerSettings with { BotMode = botModeStr[0] };
+        }
     }
-    
+
     protected virtual void OnServerNoticeReceived(string source, string message)
     {
-        ServerNoticeReceivedEvent?.Invoke(this, new MessageReceivedEventArgs(message, source, notice: true));
+        ServerNoticeReceivedEvent?.Invoke(this, new MessageReceivedEventArgs(message, source, true));
     }
-    
+
     protected virtual void OnTopicChanged(string channelName, string topic)
     {
         if (!_channels.TryGetValue(channelName, out var channel))
         {
             channel = AddChannel(channelName);
         }
-        
+
         var oldTopic = channel.Topic;
         channel.Topic = topic;
         TopicChangedEvent?.Invoke(this, new TopicChangedEventArgs(channelName, topic, oldTopic));

@@ -20,4 +20,6 @@ public static class IrcV3Capabilities
     public const string MultiPrefix = "multi-prefix";
     public const string SetName = "setname";
     public const string UserHostInNames = "userhost-in-names";
+
+    public const string DraftNoImplicitNames = "draft/no-implicit-names";
 }
