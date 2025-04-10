@@ -58,12 +58,12 @@ client.ChannelMessageReceivedEvent += (sender, e) =>
     
     if (!e.IsNotice && e.Message.StartsWith("!hello")) 
     {
-        client.Send($"PRIVMSG {e.Target} :Hello world");
+        client.Message(e.Target, "Hello world");
     }
     else if (!e.IsNotice && e.Message.StartsWith("!modes"))
     {
         var modes = client.GetChannelUserModes(e.Target, e.Source);
-        client.Send($"PRIVMSG {e.Target} :Hello {source.Nick}, your mode(s) for {e.Target} are: {modes}");
+        client.Message(e.Target, $"Hello {source.Nick}, your mode(s) for {e.Target} are: {modes}");
     }
 };
 

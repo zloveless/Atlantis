@@ -371,6 +371,38 @@ public class IrcClient
             }
         }
     }
+    
+    /// <summary>
+    /// Sends the specified target a message.
+    /// </summary>
+    /// <param name="target"></param>
+    /// <param name="message"></param>
+    /// <exception cref="ArgumentException">thrown if the target is a channel and the client is not on the channel.</exception>
+    public void Message(string target, string message) 
+    {
+        if (IsChannelName(target) && !_channels.ContainsKey(target))
+        {
+            throw new ArgumentException($"The channel name '{target}' is either invalid or does not exist.", nameof(target));
+        }
+
+        Send($"PRIVMSG {target} :{message}");
+    }
+
+    /// <summary>
+    /// Sends the specified target a message.
+    /// </summary>
+    /// <param name="target">The target of the message. Can be a channel or user.</param>
+    /// <param name="message">The message to send.</param>
+    /// <exception cref="ArgumentException">thrown if the target is a channel and the client is not on the channel.</exception>
+    public async Task MessageAsync(string target, string message)
+    {
+        if (IsChannelName(target) && !_channels.ContainsKey(target))
+        {
+            throw new ArgumentException($"The channel name '{target}' is either invalid or does not exist.", nameof(target));
+        }
+
+        await SendAsync($"PRIVMSG {target} :{message}");
+    }
 
     /// <summary>
     ///     Adds and returns the specified channel to the internal channel registry
