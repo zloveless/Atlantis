@@ -1,19 +1,20 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿namespace Atlantis.Net.Irc;
+
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.RegularExpressions;
-using Atlantis.Net.Irc.Events;
+using Events;
 using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
-
-namespace Atlantis.Net.Irc;
 
 [PublicAPI]
 public class IrcClient
 {
-    public const string Version = "Atlantis.Net.Irc/5.0.0 (.NET 9.0) - Source Code: https://github.com/zloveless/Atlantis";
-    
+    public const string Version =
+        "Atlantis.Net.Irc/5.0.0 (.NET 9.0) - Source Code: https://github.com/zloveless/Atlantis";
+
     /// <summary>
-    /// Returns a set of capabilities that the <see cref="IrcClient" /> supports and expects.
+    ///     Returns a set of capabilities that the <see cref="IrcClient" /> supports and expects.
     /// </summary>
     private static readonly List<string> RequestedCapabilities =
     [
@@ -21,28 +22,28 @@ public class IrcClient
         IrcV3Capabilities.MultiPrefix,
         IrcV3Capabilities.UserHostInNames
     ];
-    
-    private string _channelTypes;
-    private ChannelModes _chanModes;
-    private Regex _multiPrefixNames;
-    private string _prefixSymbols;
-    private string _prefixModes;
-    
-    private readonly IrcClientConfiguration _config;
-    private readonly ILogger? _logger;
-    private IrcConnection _connection;
 
     private readonly Dictionary<string, Channel> _channels = new(StringComparer.OrdinalIgnoreCase);
-    
+
+    private readonly IrcClientConfiguration _config;
+
     private readonly List<string> _enabledCapabilities = [];
-    private readonly SemaphoreSlim _registrationLock = new(0, 1);
-    
-    private int _lastNumeric = -1;
-    private bool _serverFeatureEventFired;
-    
+    private readonly ILogger? _logger;
+
     private readonly StringBuilder _motd = new();
+    private readonly SemaphoreSlim _registrationLock = new(0, 1);
+    private ChannelModes _chanModes;
+
+    private string _channelTypes;
+    private IrcConnection _connection;
+
+    private int _lastNumeric = -1;
+    private Regex _multiPrefixNames;
+    private string _prefixModes;
+    private string _prefixSymbols;
+    private bool _serverFeatureEventFired;
     private Dictionary<string, string> _serverFeatureSupport = new(StringComparer.OrdinalIgnoreCase);
-    
+
     public IrcClient(IrcClientConfiguration config, ILogger? logger = null)
     {
         _config = config;
@@ -51,31 +52,31 @@ public class IrcClient
     }
 
     #region Properties
-    
+
     /// <inheritdoc cref="IrcConnection.HostName" />
     public string HostName
     {
         get => _connection.HostName;
         set => _connection.HostName = value;
     }
-    
+
     /// <summary>
-    /// Gets the current name used on the IrcClient.
+    ///     Gets the current name used on the IrcClient.
     /// </summary>
     public string Nick { get; private set; }
-    
+
     /// <inheritdoc cref="IrcConnection.Port" />
     public short Port
     {
         get => _connection.Port;
         set => _connection.Port = value;
     }
-    
+
     /// <summary>
-    /// Gets a value representing the various settings that a server supports when connected.
+    ///     Gets a value representing the various settings that a server supports when connected.
     /// </summary>
     public IrcClientSupportsSettings ServerSettings { get; private set; } = new();
-    
+
     /// <inheritdoc cref="IrcConnection.UseSsl" />
     public bool UseSsl
     {
@@ -378,25 +379,26 @@ public class IrcClient
             }
         }
     }
-    
+
     /// <summary>
-    /// Sends the specified target a message.
+    ///     Sends the specified target a message.
     /// </summary>
     /// <param name="target"></param>
     /// <param name="message"></param>
     /// <exception cref="ArgumentException">thrown if the target is a channel and the client is not on the channel.</exception>
-    public void Message(string target, string message) 
+    public void Message(string target, string message)
     {
         if (IsChannelName(target) && !_channels.ContainsKey(target))
         {
-            throw new ArgumentException($"The channel name '{target}' is either invalid or does not exist.", nameof(target));
+            throw new ArgumentException($"The channel name '{target}' is either invalid or does not exist.",
+                nameof(target));
         }
 
         Send($"PRIVMSG {target} :{message}");
     }
 
     /// <summary>
-    /// Sends the specified target a message.
+    ///     Sends the specified target a message.
     /// </summary>
     /// <param name="target">The target of the message. Can be a channel or user.</param>
     /// <param name="message">The message to send.</param>
@@ -405,7 +407,8 @@ public class IrcClient
     {
         if (IsChannelName(target) && !_channels.ContainsKey(target))
         {
-            throw new ArgumentException($"The channel name '{target}' is either invalid or does not exist.", nameof(target));
+            throw new ArgumentException($"The channel name '{target}' is either invalid or does not exist.",
+                nameof(target));
         }
 
         await SendAsync($"PRIVMSG {target} :{message}");
@@ -521,7 +524,7 @@ public class IrcClient
         }
 
         Send("CAP LS 302");
-        
+
         Send($"USER {_config.Ident} 0 * :{_config.RealName}");
         Send($"NICK {_config.Nick}");
 
