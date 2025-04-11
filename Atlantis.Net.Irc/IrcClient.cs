@@ -165,6 +165,28 @@ public class IrcClient
     #endregion
 
     #region Methods
+    
+    /// <summary>
+    ///     Adds and returns the specified channel to the internal channel registry
+    /// </summary>
+    /// <param name="channelName"></param>
+    /// <returns></returns>
+    protected Channel AddChannel(string channelName)
+    {
+        if (!IsChannelName(channelName))
+        {
+            throw new ArgumentException($"The specified 'channel' is invalid: {channelName}", nameof(channelName));
+        }
+
+        if (_channels.TryGetValue(channelName, out var channel))
+        {
+            return channel;
+        }
+
+        var result = new Channel(channelName, this);
+        _channels.Add(channelName, result);
+        return result;
+    }
 
     /// <summary>
     ///     Adds a new or updates an existing channel mode to the internal registrar.
@@ -212,26 +234,28 @@ public class IrcClient
             channel.Modes.Add(channelMode);
         }
     }
-
+    
     /// <summary>
-    ///     Returns a value whether or not the specified target is a channel name or not.
+    ///     Returns a <see cref="ChannelUser" /> if they exist on the channel.
     /// </summary>
-    /// <param name="target">The name to check whether its a channel.</param>
-    /// <returns>Whether the specified target is a channel according to the received prefixes.</returns>
-    private bool IsChannelName(string target)
+    /// <param name="channelName"></param>
+    /// <param name="userName"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentNullException"></exception>
+    /// <exception cref="ArgumentOutOfRangeException"></exception>
+    private ChannelUser? FindUserInChannel(string channelName, string userName)
     {
-        return !string.IsNullOrEmpty(_channelTypes) && _channelTypes.Any(target.StartsWith);
-    }
+        if (string.IsNullOrEmpty(channelName))
+        {
+            throw new ArgumentNullException(nameof(channelName));
+        }
 
-    /// <summary>
-    ///     Returns whether the specified user prefix or name is the current <see cref="IrcClient" />.
-    /// </summary>
-    /// <param name="userPrefix">The nick!ident@host prefix of the user to check.</param>
-    /// <returns>true if the specified prefix is indeed the current <see cref="IrcClient" />.</returns>
-    private bool IsMe(string userPrefix)
-    {
-        var source = IrcSource.FromPrefix(userPrefix);
-        return source.Nick.StartsWith(Nick);
+        if (string.IsNullOrEmpty(userName))
+        {
+            throw new ArgumentNullException(nameof(userName));
+        }
+
+        return _channels.TryGetValue(channelName, out var channel) ? channel.FindUser(userName) : null;
     }
 
     /// <summary>
@@ -272,28 +296,26 @@ public class IrcClient
 
         return channel.TryGetUserModes(userPrefix, out var channelUser) ? channelUser.Modes : string.Empty;
     }
+    
+    /// <summary>
+    ///     Returns a value whether or not the specified target is a channel name or not.
+    /// </summary>
+    /// <param name="target">The name to check whether its a channel.</param>
+    /// <returns>Whether the specified target is a channel according to the received prefixes.</returns>
+    private bool IsChannelName(string target)
+    {
+        return !string.IsNullOrEmpty(_channelTypes) && _channelTypes.Any(target.StartsWith);
+    }
 
     /// <summary>
-    ///     Returns a <see cref="ChannelUser" /> if they exist on the channel.
+    ///     Returns whether the specified user prefix or name is the current <see cref="IrcClient" />.
     /// </summary>
-    /// <param name="channelName"></param>
-    /// <param name="userName"></param>
-    /// <returns></returns>
-    /// <exception cref="ArgumentNullException"></exception>
-    /// <exception cref="ArgumentOutOfRangeException"></exception>
-    private ChannelUser? FindUserInChannel(string channelName, string userName)
+    /// <param name="userPrefix">The nick!ident@host prefix of the user to check.</param>
+    /// <returns>true if the specified prefix is indeed the current <see cref="IrcClient" />.</returns>
+    private bool IsMe(string userPrefix)
     {
-        if (string.IsNullOrEmpty(channelName))
-        {
-            throw new ArgumentNullException(nameof(channelName));
-        }
-
-        if (string.IsNullOrEmpty(userName))
-        {
-            throw new ArgumentNullException(nameof(userName));
-        }
-
-        return _channels.TryGetValue(channelName, out var channel) ? channel.FindUser(userName) : null;
+        var source = IrcSource.FromPrefix(userPrefix);
+        return source.Nick.StartsWith(Nick);
     }
 
     /// <summary>
@@ -412,28 +434,6 @@ public class IrcClient
         }
 
         await SendAsync($"PRIVMSG {target} :{message}");
-    }
-
-    /// <summary>
-    ///     Adds and returns the specified channel to the internal channel registry
-    /// </summary>
-    /// <param name="channelName"></param>
-    /// <returns></returns>
-    protected Channel AddChannel(string channelName)
-    {
-        if (!IsChannelName(channelName))
-        {
-            throw new ArgumentException($"The specified 'channel' is invalid: {channelName}", nameof(channelName));
-        }
-
-        if (_channels.TryGetValue(channelName, out var channel))
-        {
-            return channel;
-        }
-
-        var result = new Channel(channelName, this);
-        _channels.Add(channelName, result);
-        return result;
     }
 
     /// <summary>
@@ -670,6 +670,8 @@ public class IrcClient
     protected virtual void OnCommand(string command, string prefix, string trailing, string[] commandParams,
         IDictionary<string, string> tags)
     {
+        _logger?.LogDebug($"<- ({prefix}) {command} [{string.Join(", ", commandParams)}] ({trailing})");
+        
         if (command.Equals("PRIVMSG", StringComparison.OrdinalIgnoreCase)
             && trailing.StartsWith('\x01') && trailing.EndsWith('\x01'))
         {
@@ -747,10 +749,6 @@ public class IrcClient
             var channel = commandParams[0];
             var topic = trailing;
             OnTopicChanged(channel, topic);
-        }
-        else
-        {
-            _logger?.LogDebug($"<- ({prefix}) {command} [{string.Join(", ", commandParams)}] ({trailing})");
         }
     }
 
