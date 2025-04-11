@@ -1,35 +1,38 @@
-﻿using System.Net;
+﻿namespace Atlantis.Net.Irc;
+
+using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using JetBrains.Annotations;
 
-namespace Atlantis.Net.Irc;
-
-[PublicAPI] public delegate void OnDataReceived(string data);
-[PublicAPI] public delegate void OnConnect();
-
-[PublicAPI] public delegate void AuthenticateSsl(SslStream stream);
-
 /// <summary>
-/// Provides a connection manager for an IRC connection.
+///     Provides a connection manager for an IRC connection.
 /// </summary>
 [PublicAPI]
 public class IrcConnection : IDisposable
 {
-    private readonly OnDataReceived _dataReceived;
+    public delegate void AuthenticateSsl(SslStream stream);
+
+    public delegate void OnConnect();
+
+    public delegate void OnDataReceived(string data);
+
+    private static readonly Encoding Encoding = Encoding.UTF8;
     private readonly AuthenticateSsl? _authenticateSslHandler;
     private readonly OnConnect _connectHandler;
-    private static readonly Encoding Encoding = Encoding.UTF8;
+    private readonly SemaphoreSlim _connectingLock = new(0, 1);
+
+    private readonly OnDataReceived _dataReceived;
+    private readonly SemaphoreSlim _writingLock = new(1, 1);
 
     private TcpClient _client;
-    private Stream _stream;
-    private readonly SemaphoreSlim _connectingLock = new(0, 1);
-    private readonly SemaphoreSlim _writingLock = new(1, 1);
     private bool _stopRequested;
+    private Stream _stream;
 
-    public IrcConnection(OnConnect connectHandler, OnDataReceived dataReceivedHandler, AuthenticateSsl? authenticateSslHandler = null)
+    public IrcConnection(OnConnect connectHandler, OnDataReceived dataReceivedHandler,
+        AuthenticateSsl? authenticateSslHandler = null)
     {
         _connectHandler = connectHandler;
         _dataReceived = dataReceivedHandler;
@@ -37,90 +40,41 @@ public class IrcConnection : IDisposable
     }
 
     /// <summary>
-    /// Gets a value representing whether the connection is active.
+    ///     Gets a value representing whether the connection is active.
     /// </summary>
     [PublicAPI]
     public bool Connected => _client != null && _client.Connected;
 
     /// <summary>
-    /// Gets the IRC address in which to connect.
+    ///     Gets the IRC address in which to connect.
     /// </summary>
     public string HostName { get; set; } = "";
 
     /// <summary>
-    /// Gets the port on which to connect.
+    ///     Gets the port on which to connect.
     /// </summary>
     public short Port { get; set; } = 6667;
 
     /// <summary>
-    /// Gets or sets a value indicating whether the connection will use SSL.
+    ///     Gets or sets a value indicating whether the connection will use SSL.
     /// </summary>
     public bool UseSsl { get; set; }
 
-    /// <summary>
-    /// Raised when the connection ends prematurely.
-    /// </summary>
-    public event EventHandler SocketDisconnectEvent;
-    
-    /// <summary>
-    /// Starts the <see cref="IrcConnection" />.
-    /// </summary>
-    /// <returns></returns>
-    [PublicAPI]
-    public async Task<bool> Start()
-    {       
-        try
-        {
-            _client?.Close();        
-            _client = new TcpClient();
-            
-            var he = await Dns.GetHostEntryAsync(HostName).ConfigureAwait(false);
-            var connection = new IPEndPoint(he.AddressList[0], Port);
-            await _client.ConnectAsync(connection);
-            var stream = _client.GetStream();
-            
-            if (UseSsl && _authenticateSslHandler != null)
-            {
-                var sslStream = new SslStream(stream, false, ValidateServerCertificate, null);
-                _authenticateSslHandler(sslStream);
-                _stream = sslStream;
-            }
-            else
-            {
-                _stream = stream;
-            }
-            
-            _ = Task.Run(ReceiveCallback);            
-            _connectHandler();
-        }
-        catch (SocketException)
-        {
-            return false;
-        }
-
-        await _connectingLock.WaitAsync();
-        return true;
-    }
-
-    private bool ValidateServerCertificate(object sender, X509Certificate? certificate, X509Chain? chain, SslPolicyErrors sslpolicyerrors)
+    /// <summary>Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.</summary>
+    public void Dispose()
     {
-        // TODO: validate?
-        return true;
+        _client.Dispose();
+        _stream.Dispose();
+        _connectingLock.Dispose();
+        _writingLock.Dispose();
+        GC.SuppressFinalize(this);
     }
 
-    public Task<bool> Stop() 
+    private void OnDisconnect()
     {
-        if (!Connected)
-        {
-            return Task.FromResult(false);
-        }
-
-        _stopRequested = true;
-        _client.Close();
-
-        return Task.FromResult(true);
+        SocketDisconnectEvent?.Invoke(this, EventArgs.Empty);
     }
-    
+
     private async Task ReceiveCallback()
     {
         var lastMessageIndex = 0;
@@ -131,7 +85,7 @@ public class IrcConnection : IDisposable
             {
                 break;
             }
-            
+
             var data = await reader.ReadLineAsync();
             if (!string.IsNullOrEmpty(data))
             {
@@ -141,21 +95,21 @@ public class IrcConnection : IDisposable
 
             lastMessageIndex++;
         }
-        
+
         if (!_stopRequested)
         {
             OnDisconnect();
         }
     }
-    
+
     /// <summary>
-    /// Sends the specified formatted message to the IRC connection synchronously, if connected.
+    ///     Sends the specified formatted message to the IRC connection synchronously, if connected.
     /// </summary>
     /// <param name="message"></param>
     /// <param name="args"></param>
     /// <returns></returns>
     [PublicAPI]
-    public bool Send(string message, params object[] args) 
+    public bool Send(string message, params object[] args)
     {
         if (!Connected)
         {
@@ -169,7 +123,7 @@ public class IrcConnection : IDisposable
                            .AppendFormat(message, args)
                            .Append('\n')
                            .ToString();
-            
+
             var buf = Encoding.GetBytes(compiled);
             _stream.Write(buf);
             _stream.Flush();
@@ -180,9 +134,9 @@ public class IrcConnection : IDisposable
             _writingLock.Release();
         }
     }
-    
+
     /// <summary>
-    /// Sends the specified formatted message to the IRC connection asynchronously, if connected.
+    ///     Sends the specified formatted message to the IRC connection asynchronously, if connected.
     /// </summary>
     /// <param name="message"></param>
     /// <param name="args"></param>
@@ -194,7 +148,7 @@ public class IrcConnection : IDisposable
         {
             return false;
         }
-        
+
         await _writingLock.WaitAsync();
         try
         {
@@ -213,19 +167,69 @@ public class IrcConnection : IDisposable
             _writingLock.Release();
         }
     }
-    
-    private void OnDisconnect()
+
+    /// <summary>
+    ///     Starts the <see cref="IrcConnection" />.
+    /// </summary>
+    /// <returns></returns>
+    [PublicAPI]
+    public async Task<bool> Start()
     {
-        SocketDisconnectEvent?.Invoke(this, EventArgs.Empty);
+        try
+        {
+            _client?.Close();
+            _client = new TcpClient();
+
+            var he = await Dns.GetHostEntryAsync(HostName).ConfigureAwait(false);
+            var connection = new IPEndPoint(he.AddressList[0], Port);
+            await _client.ConnectAsync(connection);
+            var stream = _client.GetStream();
+
+            if (UseSsl && _authenticateSslHandler != null)
+            {
+                var sslStream = new SslStream(stream, false, ValidateServerCertificate, null);
+                _authenticateSslHandler(sslStream);
+                _stream = sslStream;
+            }
+            else
+            {
+                _stream = stream;
+            }
+
+            _ = Task.Run(ReceiveCallback);
+            _connectHandler();
+        }
+        catch (SocketException)
+        {
+            return false;
+        }
+
+        await _connectingLock.WaitAsync();
+        return true;
     }
 
-    /// <summary>Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.</summary>
-    public void Dispose()
+    public Task<bool> Stop()
     {
-        _client.Dispose();
-        _stream.Dispose();
-        _connectingLock.Dispose();
-        _writingLock.Dispose();
-        GC.SuppressFinalize(this);
+        if (!Connected)
+        {
+            return Task.FromResult(false);
+        }
+
+        _stopRequested = true;
+        _client.Close();
+
+        return Task.FromResult(true);
     }
+
+    private bool ValidateServerCertificate(object sender, X509Certificate? certificate, X509Chain? chain,
+        SslPolicyErrors sslpolicyerrors)
+    {
+        // TODO: validate?
+        return true;
+    }
+
+    /// <summary>
+    ///     Raised when the connection ends prematurely.
+    /// </summary>
+    public event EventHandler SocketDisconnectEvent;
 }
