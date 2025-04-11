@@ -149,6 +149,13 @@ public class IrcClient
     /// </summary>
     public event EventHandler<ServerFeaturesReceivedEventArgs> ServerFeaturesReceivedEvent;
 
+    /// <inheritdoc cref="IrcConnection.SocketDisconnectEvent" />
+    public event EventHandler SocketDisconnectEvent
+    {
+        add => _connection.SocketDisconnectEvent += value;
+        remove => _connection.SocketDisconnectEvent -= value;
+    }
+
     /// <summary>
     ///     Raised when a channel's topic was changed.
     /// </summary>

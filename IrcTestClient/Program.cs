@@ -32,6 +32,11 @@ client.ConnectionEstablishedEvent += (sender, e) =>
     client.Send("JOIN #genesis");
 };
 
+client.SocketDisconnectEvent += (sender, e) =>
+{
+    logger.LogError("The client disconnected. Possibly rematurely.");
+};
+
 client.KickEvent += (sender, e) =>
 {
     var source = IrcSource.FromPrefix(e.UserPrefix);

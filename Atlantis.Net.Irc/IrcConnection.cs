@@ -16,18 +16,17 @@ namespace Atlantis.Net.Irc;
 /// Provides a connection manager for an IRC connection.
 /// </summary>
 [PublicAPI]
-public class IrcConnection
+public class IrcConnection : IDisposable
 {
     private readonly OnDataReceived _dataReceived;
     private readonly AuthenticateSsl? _authenticateSslHandler;
     private readonly OnConnect _connectHandler;
     private static readonly Encoding Encoding = Encoding.UTF8;
-    
-    private readonly TcpClient _client = new();
-    private readonly SemaphoreSlim _connectingLock = new(0, 1);
+
+    private TcpClient _client;
     private Stream _stream;
+    private readonly SemaphoreSlim _connectingLock = new(0, 1);
     private readonly SemaphoreSlim _writingLock = new(1, 1);
-    private readonly Thread _worker;
     private bool _stopRequested;
 
     public IrcConnection(OnConnect connectHandler, OnDataReceived dataReceivedHandler, AuthenticateSsl? authenticateSslHandler = null)
@@ -35,11 +34,6 @@ public class IrcConnection
         _connectHandler = connectHandler;
         _dataReceived = dataReceivedHandler;
         _authenticateSslHandler = authenticateSslHandler;
-
-        _worker = new Thread(ThreadCallback)
-        {
-            IsBackground = true
-        };
     }
 
     /// <summary>
@@ -47,16 +41,16 @@ public class IrcConnection
     /// </summary>
     [PublicAPI]
     public bool Connected => _client != null && _client.Connected;
-    
+
     /// <summary>
     /// Gets the IRC address in which to connect.
     /// </summary>
-    public string HostName { get; set; }
+    public string HostName { get; set; } = "";
 
     /// <summary>
     /// Gets the port on which to connect.
     /// </summary>
-    public short Port { get; set; }
+    public short Port { get; set; } = 6667;
 
     /// <summary>
     /// Gets or sets a value indicating whether the connection will use SSL.
@@ -74,14 +68,12 @@ public class IrcConnection
     /// <returns></returns>
     [PublicAPI]
     public async Task<bool> Start()
-    {
-        if (Connected)
-        {
-            return false;
-        }
-        
+    {       
         try
         {
+            _client?.Close();        
+            _client = new TcpClient();
+            
             var he = await Dns.GetHostEntryAsync(HostName).ConfigureAwait(false);
             var connection = new IPEndPoint(he.AddressList[0], Port);
             await _client.ConnectAsync(connection);
@@ -98,7 +90,7 @@ public class IrcConnection
                 _stream = stream;
             }
             
-            _worker.Start();
+            _ = Task.Run(ReceiveCallback);            
             _connectHandler();
         }
         catch (SocketException)
@@ -129,7 +121,7 @@ public class IrcConnection
         return Task.FromResult(true);
     }
     
-    private void ThreadCallback(object? state)
+    private async Task ReceiveCallback()
     {
         var lastMessageIndex = 0;
         using var reader = new StreamReader(_stream, Encoding, leaveOpen: true);
@@ -140,7 +132,7 @@ public class IrcConnection
                 break;
             }
             
-            var data = reader.ReadLine();
+            var data = await reader.ReadLineAsync();
             if (!string.IsNullOrEmpty(data))
             {
                 _dataReceived(data);
@@ -222,8 +214,18 @@ public class IrcConnection
         }
     }
     
-    protected virtual void OnDisconnect()
+    private void OnDisconnect()
     {
         SocketDisconnectEvent?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.</summary>
+    public void Dispose()
+    {
+        _client.Dispose();
+        _stream.Dispose();
+        _connectingLock.Dispose();
+        _writingLock.Dispose();
+        GC.SuppressFinalize(this);
     }
 }
