@@ -8,16 +8,13 @@ namespace Atlantis.Net.Irc.Events;
 [PublicAPI]
 public class MessageReceivedEventArgs : EventArgs
 {
-    public MessageReceivedEventArgs(string message, string prefix, string target, bool notice = false, IDictionary<string, string>? tags = null) : this(message, prefix, notice, tags)
+    public MessageReceivedEventArgs(string prefix, string target, string message, MessageType type, IDictionary<string, string>? tags = null)
     {
-        Target = target;
-    }
-
-    public MessageReceivedEventArgs(string message, string prefix, bool notice = false, IDictionary<string, string>? tags = null)
-    {
-        Message = message;
         Source = prefix;
-        IsNotice = notice;
+        Target = target;
+        Message = message;
+        IsAction = type == MessageType.Action;
+        IsNotice = type == MessageType.Notice;
         Tags = tags;
     }
     
@@ -35,6 +32,11 @@ public class MessageReceivedEventArgs : EventArgs
     /// Gets the target of the message.
     /// </summary>
     public string? Target { get; } = null;
+    
+    /// <summary>
+    /// Gets a value representing whether the message is an action message from a /me command.
+    /// </summary>
+    public bool IsAction { get; }
     
     /// <summary>
     /// Gets a value representing whether the message is a notice or privmsg.

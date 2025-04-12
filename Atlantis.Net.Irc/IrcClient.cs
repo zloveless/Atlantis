@@ -675,18 +675,19 @@ public class IrcClient
         if (command.Equals("PRIVMSG", StringComparison.OrdinalIgnoreCase)
             && trailing.StartsWith('\x01') && trailing.EndsWith('\x01'))
         {
-            OnCtcpReceived(prefix, trailing.Trim('\x01').ToLower());
+            var targetName = commandParams.Length > 0 ? commandParams[0] : null;
+            OnCtcpReceived(prefix, trailing.Trim('\x01'), targetName);
         }
         else if (command.Equals("PRIVMSG", StringComparison.OrdinalIgnoreCase))
         {
             var target = commandParams[0];
             if (IsChannelName(target))
             {
-                OnChannelMessageReceived(prefix, target, trailing, false, tags);
+                OnChannelMessageReceived(prefix, target, trailing, tags: tags);
             }
             else
             {
-                OnPrivateMessageReceived(prefix, trailing, false, tags);
+                OnPrivateMessageReceived(prefix, trailing, tags: tags);
             }
         }
         else if (command.Equals("NOTICE", StringComparison.OrdinalIgnoreCase))
@@ -707,11 +708,11 @@ public class IrcClient
             var target = commandParams[0];
             if (IsChannelName(target))
             {
-                OnChannelMessageReceived(prefix, target, trailing, true, tags);
+                OnChannelMessageReceived(prefix, target, trailing, MessageType.Notice, tags);
             }
             else
             {
-                OnPrivateMessageReceived(prefix, trailing, true, tags);
+                OnPrivateMessageReceived(prefix, trailing, MessageType.Notice, tags);
             }
         }
         else if (command.Equals("JOIN", StringComparison.OrdinalIgnoreCase))
@@ -766,12 +767,12 @@ public class IrcClient
     /// <param name="prefix">The source of the message.</param>
     /// <param name="channel">The target channel of the message.</param>
     /// <param name="message">The message itself.</param>
-    /// <param name="notice">Whether or not the message was a NOTICE or PRIVMSG.</param>
+    /// <param name="type">The message type, whether it's an action, message, or notice</param>
     /// <param name="tags">Any tags that the message contained.</param>
-    protected virtual void OnChannelMessageReceived(string prefix, string channel, string message, bool notice = false,
+    protected virtual void OnChannelMessageReceived(string prefix, string channel, string message, MessageType type = MessageType.Message,
         IDictionary<string, string>? tags = null)
     {
-        ChannelMessageReceivedEvent?.Invoke(this, new MessageReceivedEventArgs(message, prefix, channel, notice, tags));
+        ChannelMessageReceivedEvent?.Invoke(this, new MessageReceivedEventArgs(prefix, channel, message, type, tags));
     }
 
     /// <summary>
@@ -831,7 +832,8 @@ public class IrcClient
     /// </summary>
     /// <param name="prefix">The source of the CTCP event.</param>
     /// <param name="ctcpEvent">The CTCP event name.</param>
-    protected virtual void OnCtcpReceived(string prefix, string ctcpEvent)
+    /// <param name="targetName">The target of the event, whether channel or user.</param>
+    protected virtual void OnCtcpReceived(string prefix, string ctcpEvent, string? targetName = null)
     {
         // Filter out DCC requests.
         if (ctcpEvent.StartsWith("DCC", StringComparison.OrdinalIgnoreCase))
@@ -853,7 +855,30 @@ public class IrcClient
             _logger?.LogWarning($"Unrecognized CTCP event? {ctcpEvent} (from {prefix})");
             return;
         }
+        
+        // The client's /me command is implemented as a CTCP event.
+        if (ctcp == CtcpEvent.Action && string.IsNullOrEmpty(targetName))
+        {
+            return;
+        }
 
+        if (ctcp == CtcpEvent.Action && !string.IsNullOrEmpty(targetName))
+        {
+            if (IsChannelName(targetName))
+            {
+                OnChannelMessageReceived(prefix, targetName, ctcpParams, MessageType.Action);
+            }
+            else
+            {
+                OnPrivateMessageReceived(prefix, ctcpParams, MessageType.Action);
+            }
+            
+            return;
+        }
+
+        // now that actions are handled, lowercase the parameters.
+        ctcpParams = ctcpParams.ToLower();
+        
         var args = new CtcpReceivedEventArgs(prefix, ctcp);
         CtcpReceivedEvent?.Invoke(this, args);
 
@@ -868,21 +893,21 @@ public class IrcClient
         }
         else
         {
-            switch (ctcp)
+            if (ctcp == CtcpEvent.Finger)
             {
-                case CtcpEvent.Finger:
-                    response = "Buy me dinner first...";
-                    break;
-                case CtcpEvent.Ping:
-                    response = ctcpParams;
-                    break;
-                case CtcpEvent.Time:
-                    response = DateTime.Now.ToString("ddd MMM dd HH:mm:ss yyyy");
-                    break;
-                case CtcpEvent.Version:
-                default:
-                    response = Version;
-                    break;
+                response = "Buy me dinner first...";
+            }
+            else if (ctcp == CtcpEvent.Ping)
+            {
+                response = ctcpParams;
+            }
+            else if (ctcp == CtcpEvent.Time)
+            {
+                response = DateTime.Now.ToString("ddd MMM dd HH:mm:ss yyyy");
+            }
+            else
+            {
+                response = Version;
             }
         }
 
@@ -1139,10 +1164,17 @@ public class IrcClient
         }
     }
 
-    protected virtual void OnPrivateMessageReceived(string prefix, string message, bool notice = false,
+    /// <summary>
+    ///     Handles a message event received from the IRC server targeting the client.
+    /// </summary>
+    /// <param name="prefix">The source of the message.</param>
+    /// <param name="message">The message itself.</param>
+    /// <param name="type">The message type, whether it's an action, message, or notice</param>
+    /// <param name="tags">Any tags that the message contained.</param>
+    protected virtual void OnPrivateMessageReceived(string prefix, string message, MessageType type = MessageType.Message,
         IDictionary<string, string>? tags = null)
     {
-        PrivateMessageReceivedEvent?.Invoke(this, new MessageReceivedEventArgs(message, prefix, notice, tags));
+        PrivateMessageReceivedEvent?.Invoke(this, new MessageReceivedEventArgs(prefix, Nick, message, type, tags));
     }
 
     protected virtual void HandleReplyISupportReceived()
@@ -1220,7 +1252,7 @@ public class IrcClient
 
     protected virtual void OnServerNoticeReceived(string source, string message)
     {
-        ServerNoticeReceivedEvent?.Invoke(this, new MessageReceivedEventArgs(message, source, true));
+        ServerNoticeReceivedEvent?.Invoke(this, new MessageReceivedEventArgs(source, Nick, message, MessageType.Notice));
     }
 
     protected virtual void OnTopicChanged(string channelName, string topic)

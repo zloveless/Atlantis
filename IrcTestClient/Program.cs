@@ -56,6 +56,10 @@ client.ChannelMessageReceivedEvent += (sender, e) =>
     {
         logger.LogInformation($"NOTICE({e.Target}, {e.Tags?.Count ?? 0}) from {source}: {e.Message}");
     }
+    else if (e.IsAction)
+    {
+        logger.LogInformation($"ACTION({e.Target}, {e.Tags?.Count ?? 0}): {source} {e.Message}");
+    }
     else
     {
         logger.LogInformation($"MESSAGE({e.Target}, {e.Tags?.Count ?? 0}) from {source}: {e.Message}");
@@ -69,6 +73,24 @@ client.ChannelMessageReceivedEvent += (sender, e) =>
     {
         var modes = client.GetChannelUserModes(e.Target, e.Source);
         client.Message(e.Target, $"Hello {source.Nick}, your mode(s) for {e.Target} are: {modes}");
+    }
+};
+
+client.PrivateMessageReceivedEvent += (sender, e) =>
+{
+    var source = IrcSource.FromPrefix(e.Source);
+    // ReSharper disable once ConvertIfStatementToConditionalTernaryExpression
+    if (e.IsNotice)
+    {
+        logger.LogInformation($"NOTICE({e.Target}, {e.Tags?.Count ?? 0}) from {source}: {e.Message}");
+    }
+    else if (e.IsAction)
+    {
+        logger.LogInformation($"ACTION({e.Target}, {e.Tags?.Count ?? 0}): {source} {e.Message}");
+    }
+    else
+    {
+        logger.LogInformation($"MESSAGE({e.Target}, {e.Tags?.Count ?? 0}) from {source}: {e.Message}");
     }
 };
 
