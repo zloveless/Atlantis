@@ -16,10 +16,11 @@ public class IrcClient
     /// <summary>
     ///     Returns a set of capabilities that the <see cref="IrcClient" /> supports and expects.
     /// </summary>
-    private static readonly List<string> RequestedCapabilities =
+    private static readonly string[] RequestedCapabilities =
     [
         IrcV3Capabilities.MessageTags,
         IrcV3Capabilities.MultiPrefix,
+        IrcV3Capabilities.LabeledResponse,
         IrcV3Capabilities.UserHostInNames
     ];
 
@@ -589,12 +590,6 @@ public class IrcClient
             var subCommand = commandParams[1];
             if (subCommand.Equals("LS", StringComparison.OrdinalIgnoreCase))
             {
-                // We're waiting for registration to complete, so this is a priority response.
-                if (RequestedCapabilities.Count == 0)
-                {
-                    return;
-                }
-
                 var availableCaps = trailing!.Split(' ').ToArray();
                 // First get a list of capabilities that we can request and are available
                 var req = RequestedCapabilities.Intersect(availableCaps).ToArray();
