@@ -1,4 +1,5 @@
 ﻿using Atlantis.Net.Irc;
+using Atlantis.Net.Irc.Events;
 using Microsoft.Extensions.Logging;
 using Serilog;
 
@@ -73,6 +74,10 @@ client.ChannelMessageReceivedEvent += (sender, e) =>
     {
         var modes = client.GetChannelUserModes(e.Target, e.Source);
         client.Message(e.Target, $"Hello {source.Nick}, your mode(s) for {e.Target} are: {modes}");
+    }
+    else if (!e.IsNotice && e.Message.StartsWith("!version"))
+    {
+        client.SendCtcp(CtcpEvent.Version, source.Nick, string.Empty);
     }
 };
 

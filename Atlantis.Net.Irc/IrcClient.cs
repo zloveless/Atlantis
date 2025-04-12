@@ -53,6 +53,11 @@ public class IrcClient
 
     #region Properties
 
+    /// <summary>
+    /// Gets or sets a value indicating whether the client can send notices to channels.
+    /// </summary>
+    public bool AllowNoticeChannels { get; set; }
+
     /// <inheritdoc cref="IrcConnection.HostName" />
     public string HostName
     {
@@ -298,15 +303,25 @@ public class IrcClient
     }
     
     /// <summary>
+    /// Returns a value whether or not the specified channel exists on the client.
+    /// </summary>
+    /// <param name="channelName">The name to check whether its a channel.</param>
+    /// <returns>Whether the specified target is a channel according to the received prefixes.</returns>
+    public bool IsChannel(string channelName)
+    {
+        return IsChannelName(channelName) && _channels.ContainsKey(channelName);
+    }
+    
+    /// <summary>
     ///     Returns a value whether or not the specified target is a channel name or not.
     /// </summary>
     /// <param name="target">The name to check whether its a channel.</param>
     /// <returns>Whether the specified target is a channel according to the received prefixes.</returns>
-    private bool IsChannelName(string target)
+    public bool IsChannelName(string target)
     {
         return !string.IsNullOrEmpty(_channelTypes) && _channelTypes.Any(target.StartsWith);
     }
-
+    
     /// <summary>
     ///     Returns whether the specified user prefix or name is the current <see cref="IrcClient" />.
     /// </summary>
@@ -400,40 +415,6 @@ public class IrcClient
                 yield return new GenericMode(modes[modeIndex], arg, set, ModeType.Access);
             }
         }
-    }
-
-    /// <summary>
-    ///     Sends the specified target a message.
-    /// </summary>
-    /// <param name="target"></param>
-    /// <param name="message"></param>
-    /// <exception cref="ArgumentException">thrown if the target is a channel and the client is not on the channel.</exception>
-    public void Message(string target, string message)
-    {
-        if (IsChannelName(target) && !_channels.ContainsKey(target))
-        {
-            throw new ArgumentException($"The channel name '{target}' is either invalid or does not exist.",
-                nameof(target));
-        }
-
-        Send($"PRIVMSG {target} :{message}");
-    }
-
-    /// <summary>
-    ///     Sends the specified target a message.
-    /// </summary>
-    /// <param name="target">The target of the message. Can be a channel or user.</param>
-    /// <param name="message">The message to send.</param>
-    /// <exception cref="ArgumentException">thrown if the target is a channel and the client is not on the channel.</exception>
-    public async Task MessageAsync(string target, string message)
-    {
-        if (IsChannelName(target) && !_channels.ContainsKey(target))
-        {
-            throw new ArgumentException($"The channel name '{target}' is either invalid or does not exist.",
-                nameof(target));
-        }
-
-        await SendAsync($"PRIVMSG {target} :{message}");
     }
 
     /// <summary>
@@ -911,7 +892,8 @@ public class IrcClient
             }
         }
 
-        Send($"NOTICE {source} :\x01{ctcp.ToString().ToUpper()} {response}\x01");
+        //Send($"NOTICE {source} :\x01{ctcp.ToString().ToUpper()} {response}\x01");
+        this.CtcpReply(ctcp, source.ToString(), response);
     }
 
     /// <summary>
