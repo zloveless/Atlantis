@@ -33,6 +33,19 @@ client.ConnectionEstablishedEvent += (sender, e) =>
     client.Send("JOIN #genesis");
 };
 
+client.CtcpReceivedEvent += (sender, e) =>
+{
+    if (!e.IsReply) return;
+
+    var tagStr = string.Empty;
+    if (e.Tags != null)
+    {
+        tagStr = string.Join(";", e.Tags.Select(kvp => $"{kvp.Key}={kvp.Value}"));
+    }
+    
+    logger.LogInformation($"CTCP REPLY({e.Event}): From={e.Source} Tags: {tagStr}");
+};
+
 client.SocketDisconnectEvent += (sender, e) =>
 {
     logger.LogError("The client disconnected. Possibly rematurely.");
@@ -82,8 +95,8 @@ client.ChannelMessageReceivedEvent += (sender, e) =>
     else if (!e.IsNotice && e.Message.StartsWith("!version"))
     {
         // TODO: Figure out how to match requests to replies. Possible case for labels/message tags?
-        client.SendCtcp(CtcpEvent.Version, source.Nick, string.Empty);
-        //client.Send($"@label=foo PRIVMSG {source.Nick} :\x01" + $"VERSION\x01");
+        //client.SendCtcp(CtcpEvent.Version, source.Nick, string.Empty);
+        client.Send($"@label=foo PRIVMSG {source.Nick} :\x01" + $"VERSION\x01");
     }
 };
 
