@@ -107,9 +107,9 @@ public class IrcClient
     public event EventHandler ConnectionEstablishedEvent;
 
     /// <summary>
-    ///     Raised when the client receives a CTCP event.
+    ///     Raised when the client receives a CTCP request or reply.
     /// </summary>
-    public event EventHandler<CtcpReceivedEventArgs> CtcpReceivedEvent;
+    public event EventHandler<CtcpReceivedEventArgs> CtcpReceivedEvent; 
 
     /// <summary>
     ///     Event fired when the IRC connection receives an ERROR command.
@@ -652,7 +652,13 @@ public class IrcClient
             && trailing.StartsWith('\x01') && trailing.EndsWith('\x01'))
         {
             var targetName = commandParams.Length > 0 ? commandParams[0] : null;
-            OnCtcpReceived(prefix, trailing.Trim('\x01'), targetName);
+            OnCtcpReceived(prefix, trailing.Trim('\x01'), targetName, tags);
+        }
+        else if (command.Equals("NOTICE", StringComparison.OrdinalIgnoreCase)
+            && trailing.StartsWith('\x01') && trailing.EndsWith('\x01'))
+        {
+            var targetName = commandParams.Length > 0 ? commandParams[0] : null;
+            OnCtcpReplyReceived(prefix, trailing.Trim('\x01'), targetName, tags);
         }
         else if (command.Equals("PRIVMSG", StringComparison.OrdinalIgnoreCase))
         {
@@ -809,7 +815,8 @@ public class IrcClient
     /// <param name="prefix">The source of the CTCP event.</param>
     /// <param name="ctcpEvent">The CTCP event name.</param>
     /// <param name="targetName">The target of the event, whether channel or user.</param>
-    protected virtual void OnCtcpReceived(string prefix, string ctcpEvent, string? targetName = null)
+    /// <param name="tags"></param>
+    protected virtual void OnCtcpReceived(string prefix, string ctcpEvent, string? targetName = null, IDictionary<string, string>? tags = null)
     {
         // Filter out DCC requests.
         if (ctcpEvent.StartsWith("DCC", StringComparison.OrdinalIgnoreCase))
@@ -855,7 +862,7 @@ public class IrcClient
         // now that actions are handled, lowercase the parameters.
         ctcpParams = ctcpParams.ToLower();
         
-        var args = new CtcpReceivedEventArgs(prefix, ctcp);
+        var args = new CtcpReceivedEventArgs(prefix, ctcp, false, tags);
         CtcpReceivedEvent?.Invoke(this, args);
 
         string response;
@@ -887,10 +894,33 @@ public class IrcClient
             }
         }
 
-        //Send($"NOTICE {source} :\x01{ctcp.ToString().ToUpper()} {response}\x01");
         this.CtcpReply(ctcp, source.ToString(), response);
     }
 
+    protected virtual void OnCtcpReplyReceived(string prefix, string ctcpEvent, string? targetName = null, IDictionary<string, string>? tags = null)
+    {
+        if (ctcpEvent.StartsWith("DCC", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+        
+        var ctcpParams = string.Empty;
+        if (ctcpEvent.Contains(' '))
+        {
+            ctcpParams = ctcpEvent.Substring(ctcpEvent.IndexOf(' ') + 1);
+            ctcpEvent = ctcpEvent.Substring(0, ctcpEvent.IndexOf(' '));
+        }
+
+        if (!Enum.TryParse(ctcpEvent, true, out CtcpEvent ctcp))
+        {
+            _logger?.LogWarning($"Unrecognized CTCP event? {ctcpEvent} (from {prefix})");
+            return;
+        }
+        
+        // TODO: Figure out how to match requests to replies. Possible case for labels/message tags?
+        CtcpReceivedEvent?.Invoke(this, new CtcpReceivedEventArgs(prefix, ctcp, true, tags, ctcpParams));
+    }
+    
     /// <summary>
     ///     Handles errors detected in the IRC stream, usually via an ERROR command but some internal errors are filtered
     ///     through this.

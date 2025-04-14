@@ -70,6 +70,10 @@ client.ChannelMessageReceivedEvent += (sender, e) =>
     {
         client.Message(e.Target, "Hello world");
     }
+    else if (!e.IsNotice && e.Message.StartsWith("!tag"))
+    {
+        client.Send($"@+aaa;foo=bar;baz PRIVMSG {e.Target} :This message has a client only tag.");
+    }
     else if (!e.IsNotice && e.Message.StartsWith("!modes"))
     {
         var modes = client.GetChannelUserModes(e.Target, e.Source);
@@ -77,7 +81,9 @@ client.ChannelMessageReceivedEvent += (sender, e) =>
     }
     else if (!e.IsNotice && e.Message.StartsWith("!version"))
     {
+        // TODO: Figure out how to match requests to replies. Possible case for labels/message tags?
         client.SendCtcp(CtcpEvent.Version, source.Nick, string.Empty);
+        //client.Send($"@label=foo PRIVMSG {source.Nick} :\x01" + $"VERSION\x01");
     }
 };
 
