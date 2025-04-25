@@ -5,6 +5,9 @@ on:
       version:
         description: 'Package version (e.g. 1.2.3)'
         required: true
+  push:
+    branches:
+      - 5.*
 
 permissions:
   contents: write
