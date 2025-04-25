@@ -51,4 +51,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish nuget packages to GitHub
-        run: dotnet nuget push Build/Release/*.nupkg
+        run: dotnet nuget push --api-key ${{ secrets.GITHUB_TOKEN }} Build/Release/*.nupkg
