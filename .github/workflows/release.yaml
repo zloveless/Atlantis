@@ -52,5 +52,5 @@ jobs:
       - name: Publish nuget packages to GitHub
         run: |
           for file in Build/Release/*.nupkg; do
-            dotnet push "$file"
+            dotnet nuget push "$file"
           done
