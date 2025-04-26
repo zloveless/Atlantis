@@ -2,7 +2,7 @@
   <PropertyGroup>
     <Product>Atlantis</Product>
     <Description>Atlantis is a collection of code that is common amongst many pet projects.</Description>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <TargetFramework>net9.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>

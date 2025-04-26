@@ -1,5 +1,4 @@
 ﻿using Atlantis.Net.Irc;
-using Atlantis.Net.Irc.Events;
 using Microsoft.Extensions.Logging;
 using Serilog;
 
@@ -30,7 +29,7 @@ var client = new IrcClient(config, logger)
 client.ConnectionEstablishedEvent += (sender, e) => 
 {
     logger.LogInformation("Connected to IRC!");
-    client.Send("JOIN #genesis");
+    client.JoinChannel("#genesis");
 };
 
 client.CtcpReceivedEvent += (sender, e) =>
@@ -97,6 +96,11 @@ client.ChannelMessageReceivedEvent += (sender, e) =>
         // TODO: Figure out how to match requests to replies. Possible case for labels/message tags?
         //client.SendCtcp(CtcpEvent.Version, source.Nick, string.Empty);
         client.Send($"@label=foo PRIVMSG {source.Nick} :\x01" + $"VERSION\x01");
+    }
+    else if (!e.IsNotice && e.Message.StartsWith("!part"))
+    {
+        logger.LogInformation($"Parting {e.Target}");
+        client.PartChannel(e.Target);
     }
 };
 

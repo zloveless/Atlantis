@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 public class IrcClient
 {
     public const string Version =
-        "Atlantis.Net.Irc/5.0.0 (.NET 9.0) - Source Code: https://github.com/zloveless/Atlantis";
+        "Atlantis.Net.Irc/5.0.1 (.NET 9.0) - Source Code: https://github.com/zloveless/Atlantis";
 
     /// <summary>
     ///     Returns a set of capabilities that the <see cref="IrcClient" /> supports and expects.
@@ -38,6 +38,8 @@ public class IrcClient
     private string _channelTypes;
     private IrcConnection _connection;
 
+    private bool _receivedWelcome;
+    private bool _firedOnConnectEvent;
     private int _lastNumeric = -1;
     private Regex _multiPrefixNames;
     private string _prefixModes;
@@ -333,7 +335,7 @@ public class IrcClient
         var source = IrcSource.FromPrefix(userPrefix);
         return source.Nick.StartsWith(Nick);
     }
-
+    
     /// <summary>
     ///     Gets a Channel reference from the specified key.
     /// </summary>
@@ -945,7 +947,7 @@ public class IrcClient
         // ReSharper disable once ConvertIfStatementToSwitchStatement
         if (numeric == 1)
         {
-            OnConnectionEstablished();
+            _receivedWelcome = true;
         }
         else if (numeric == 324)
         {
@@ -1014,6 +1016,14 @@ public class IrcClient
         {
             // We're starting to receive new lines, so fire off ISUPPORT.
             HandleReplyISupportReceived();
+            
+            // Delay the OnConnect until after RPL_ISUPPORT
+            // This allows ConnectionEstablishedEvent to function as a "Perform" to join channels, etc.
+            if (_receivedWelcome && !_firedOnConnectEvent)
+            {
+                OnConnectionEstablished();
+                _firedOnConnectEvent = true;
+            }
         }
         else
         {

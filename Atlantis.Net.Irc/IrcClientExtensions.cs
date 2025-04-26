@@ -71,6 +71,46 @@ public static class IrcClientExtensions
         
         await client.SendAsync($"NOTICE {target} :\x01{ctcpEvent.ToString().ToUpper()} {message}\x01");
     }
+    
+    /// <summary>
+    /// Attempts to join the specified channel. 
+    /// </summary>
+    /// <param name="client">The client from which to send.</param>
+    /// <param name="channelName">the channel name to try to join.</param>
+    /// <param name="password">If the channel requires a key to enter, specify it here.</param>
+    /// <exception cref="ArgumentException">Thrown if the channel name is not an allowable channel on the <see cref="IrcClient"/>.</exception>
+    public static void JoinChannel(this IrcClient client, string channelName, string? password = null) 
+    {
+        if (!client.IsChannelName(channelName))
+        {
+            throw new ArgumentException($"To join a channel, you must provide a valid channel target. '{channelName}' is not valid.", nameof(channelName));
+        }
+
+        if (client.IsChannel(channelName)) return;
+        
+        var includedPassword = password != null ? $" :{password}" : string.Empty;
+        client.Send($"JOIN {channelName}{includedPassword}");
+    }
+    
+    /// <summary>
+    /// Attempts to join the specified channel. 
+    /// </summary>
+    /// <param name="client">The client from which to send.</param>
+    /// <param name="channelName">the channel name to try to join.</param>
+    /// <param name="password">If the channel requires a key to enter, specify it here.</param>
+    /// <exception cref="ArgumentException">Thrown if the channel name is not an allowable channel on the <see cref="IrcClient"/>.</exception>
+    public static async Task JoinChannelAsync(this IrcClient client, string channelName, string? password) 
+    {
+        if (!client.IsChannelName(channelName))
+        {
+            throw new ArgumentException($"To join a channel, you must provide a valid channel target. '{channelName}' is not valid.", nameof(channelName));
+        }
+
+        if (client.IsChannel(channelName)) return;
+        
+        var includedPassword = password != null ? $" :{password}" : string.Empty;
+        await client.SendAsync($"JOIN {channelName}{includedPassword}");
+    }
 
     /// <summary>
     ///     Sends the specified target a message.
@@ -154,6 +194,38 @@ public static class IrcClientExtensions
         }
 
         await client.SendAsync($"NOTICE {target} :{message}");
+    }
+    
+    /// <summary>
+    /// Attempts to part the specified channel.
+    /// </summary>
+    /// <param name="client">The client from which to send.</param>
+    /// <param name="channelName">The channel name to leave</param>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if the channel does not exist on the <see cref="IrcClient"/>.</exception>
+    public static void PartChannel(this IrcClient client, string channelName) 
+    {
+        if (!client.IsChannel(channelName))
+        {
+            throw new ArgumentOutOfRangeException(nameof(channelName), "The specified channel does not exist on the IrcClient's internal tracking.");
+        }
+
+        client.Send($"PART {channelName}");
+    }
+    
+    /// <summary>
+    /// Attempts to part the specified channel.
+    /// </summary>
+    /// <param name="client">The client from which to send.</param>
+    /// <param name="channelName">The channel name to leave</param>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if the channel does not exist on the <see cref="IrcClient"/>.</exception>
+    public static async Task PartChannelAsync(this IrcClient client, string channelName) 
+    {
+        if (!client.IsChannel(channelName))
+        {
+            throw new ArgumentOutOfRangeException(nameof(channelName), "The specified channel does not exist on the IrcClient's internal tracking.");
+        }
+
+        await client.SendAsync($"PART {channelName}");
     }
     
     /// <summary>
