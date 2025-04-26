@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 public class IrcClient
 {
     public const string Version =
-        "Atlantis.Net.Irc/5.0.1 (.NET 9.0) - Source Code: https://github.com/zloveless/Atlantis";
+        "Atlantis.Net.Irc/5.0.2 (.NET 9.0) - Source Code: https://github.com/zloveless/Atlantis";
 
     /// <summary>
     ///     Returns a set of capabilities that the <see cref="IrcClient" /> supports and expects.
@@ -46,6 +46,7 @@ public class IrcClient
     private string _prefixSymbols;
     private bool _serverFeatureEventFired;
     private Dictionary<string, string> _serverFeatureSupport = new(StringComparer.OrdinalIgnoreCase);
+    private readonly CancellationTokenSource _cts = new();
 
     public IrcClient(IrcClientConfiguration config, ILogger? logger = null)
     {
@@ -470,16 +471,16 @@ public class IrcClient
     /// <inheritdoc cref="IrcConnection.Start" />
     public Task<bool> Start()
     {
-        return _connection.Start();
+        return _connection.Start(_cts.Token);
     }
 
     /// <inheritdoc cref="IrcConnection.Stop" />
-    public async Task<bool> Stop(string? reason = null)
+    public void Stop(string? reason = null)
     {
         reason = reason == null ? string.Empty : string.Concat(" :", reason);
-        await SendAsync($"QUIT {reason}");
-
-        return await _connection.Stop();
+        _cts.CancelAfter(500);
+        Send($"QUIT{reason}");
+        _connection.Stop();
     }
 
     /// <inheritdoc cref="IrcConnection.Send" />
@@ -628,7 +629,7 @@ public class IrcClient
             }
         }
         else if (command.Equals("ERROR", StringComparison.OrdinalIgnoreCase))
-        {
+        {            
             OnError(trailing!);
         }
         else

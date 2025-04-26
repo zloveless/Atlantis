@@ -127,14 +127,21 @@ client.ErrorReceivedEvent += (sender, e) =>
     logger.LogError($"ERROR: {e.Message}");
 };
 
-await client.Start();
-
-Console.WriteLine("Press <CTRL+C> to cancel...");
 Console.CancelKeyPress += (sender, e) =>
 {
     logger.LogInformation("Terminating...");
     e.Cancel = true;
-    client.Stop("Exiting...").Wait();
+    client.Stop("Client exiting.");
 };
+
+Console.WriteLine("Press <CTRL+C> to cancel...");
+try
+{
+    await client.Start();
+}
+catch (OperationCanceledException)
+{
+    // delicious!
+}
 
 await Log.CloseAndFlushAsync();

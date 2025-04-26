@@ -173,16 +173,16 @@ public class IrcConnection : IDisposable
     /// </summary>
     /// <returns></returns>
     [PublicAPI]
-    public async Task<bool> Start()
+    public async Task<bool> Start(CancellationToken cancellationToken)
     {
         try
         {
             _client?.Close();
             _client = new TcpClient();
 
-            var he = await Dns.GetHostEntryAsync(HostName).ConfigureAwait(false);
+            var he = await Dns.GetHostEntryAsync(HostName, cancellationToken).ConfigureAwait(false);
             var connection = new IPEndPoint(he.AddressList[0], Port);
-            await _client.ConnectAsync(connection);
+            await _client.ConnectAsync(connection, cancellationToken);
             var stream = _client.GetStream();
 
             if (UseSsl && _authenticateSslHandler != null)
@@ -196,7 +196,7 @@ public class IrcConnection : IDisposable
                 _stream = stream;
             }
 
-            _ = Task.Run(ReceiveCallback);
+            _ = Task.Run(ReceiveCallback, cancellationToken);
             _connectHandler();
         }
         catch (SocketException)
@@ -204,21 +204,14 @@ public class IrcConnection : IDisposable
             return false;
         }
 
-        await _connectingLock.WaitAsync();
+        await _connectingLock.WaitAsync(cancellationToken);
         return true;
     }
 
-    public Task<bool> Stop()
+    public void Stop()
     {
-        if (!Connected)
-        {
-            return Task.FromResult(false);
-        }
-
         _stopRequested = true;
         _client.Close();
-
-        return Task.FromResult(true);
     }
 
     private bool ValidateServerCertificate(object sender, X509Certificate? certificate, X509Chain? chain,
