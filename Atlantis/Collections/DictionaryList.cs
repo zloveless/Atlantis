@@ -1,10 +1,4 @@
-﻿// -----------------------------------------------------------------------------
-//  <copyright file="DictionaryList.cs" company="Zack Loveless">
-//      Copyright (c) Zack Loveless.  All rights reserved.
-//  </copyright>
-// -----------------------------------------------------------------------------
-
-namespace Atlantis.Collections;
+﻿namespace Atlantis.Collections;
 
 using System.Collections.Generic;
 using JetBrains.Annotations;

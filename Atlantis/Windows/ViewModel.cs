@@ -1,10 +1,4 @@
-﻿// -----------------------------------------------------------------------------
-//  <copyright file="ViewModel.cs" company="Zack Loveless">
-//      Copyright (c) Zack Loveless.  All rights reserved.
-//  </copyright>
-// -----------------------------------------------------------------------------
-
-namespace Atlantis.Windows;
+﻿namespace Atlantis.Windows;
 
 using System.Collections.Generic;
 using System.ComponentModel;

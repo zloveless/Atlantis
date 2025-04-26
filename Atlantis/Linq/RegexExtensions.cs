@@ -1,10 +1,4 @@
-﻿// -----------------------------------------------------------------------------
-//  <copyright file="StringExExtensions.cs" company="Zack Loveless">
-//      Copyright (c) Zack Loveless.  All rights reserved.
-//  </copyright>
-// -----------------------------------------------------------------------------
-
-namespace Atlantis.Linq;
+﻿namespace Atlantis.Linq;
 
 using System.Collections.Generic;
 using System.Text.RegularExpressions;

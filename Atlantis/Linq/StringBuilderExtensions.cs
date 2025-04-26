@@ -1,9 +1,3 @@
-// -----------------------------------------------------------------------------
-//  <copyright file="StringBuilderExtensions.cs" company="Zack Loveless">
-//      Copyright (c) Zack Loveless.  All rights reserved.
-//  </copyright>
-// -----------------------------------------------------------------------------
-
 namespace Atlantis.Linq;
 
 using System;

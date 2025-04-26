@@ -1,10 +1,4 @@
-﻿// -----------------------------------------------------------------------------
-//  <copyright file="NumericExtensions.cs" company="Zack Loveless">
-//      Copyright (c) Zack Loveless.  All rights reserved.
-//  </copyright>
-// -----------------------------------------------------------------------------
-
-namespace Atlantis.Linq;
+﻿namespace Atlantis.Linq;
 
 using System;
 
