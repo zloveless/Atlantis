@@ -8,16 +8,20 @@ using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
 
 [PublicAPI]
-public class IrcClient
+public partial class IrcClient
 {
     public const string Version =
         "Atlantis.Net.Irc/5.0.2 (.NET 9.0) - Source Code: https://github.com/zloveless/Atlantis";
+    private const string WhoxRequestedFields = "%cnaht";
+    private static readonly Regex ServerVersionPattern = ServerVersionRegex();
 
     /// <summary>
     ///     Returns a set of capabilities that the <see cref="IrcClient" /> supports and expects.
     /// </summary>
     private static readonly string[] RequestedCapabilities =
     [
+        IrcV3Capabilities.AccountNotify,
+        IrcV3Capabilities.AccountTag,
         IrcV3Capabilities.MessageTags,
         IrcV3Capabilities.MultiPrefix,
         IrcV3Capabilities.LabeledResponse,
@@ -44,9 +48,12 @@ public class IrcClient
     private Regex _multiPrefixNames;
     private string _prefixModes;
     private string _prefixSymbols;
-    private bool _serverFeatureEventFired;
+    private bool _firedServerFeaturesEvent;
     private Dictionary<string, string> _serverFeatureSupport = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> _whoRequests = new(StringComparer.Ordinal); // case-sensitive keys.
     private readonly CancellationTokenSource _cts = new();
+    private bool _whoxSupported;
+    private string _serverVersionString;
 
     public IrcClient(IrcClientConfiguration config, ILogger? logger = null)
     {
@@ -649,7 +656,8 @@ public class IrcClient
     protected virtual void OnCommand(string command, string prefix, string trailing, string[] commandParams,
         IDictionary<string, string> tags)
     {
-        _logger?.LogDebug($"<- ({prefix}) {command} [{string.Join(", ", commandParams)}] ({trailing})");
+        var debugTagString = string.Join(';', tags?.Select(kvp => $"{kvp.Key}={kvp.Value}") ?? []);
+        _logger?.LogTrace($"<- ({prefix}) [{debugTagString}] {command} [{string.Join(", ", commandParams).TrimEnd()}] ({trailing})");
         
         if (command.Equals("PRIVMSG", StringComparison.OrdinalIgnoreCase)
             && trailing.StartsWith('\x01') && trailing.EndsWith('\x01'))
@@ -735,6 +743,25 @@ public class IrcClient
             var channel = commandParams[0];
             var topic = trailing;
             OnTopicChanged(channel, topic);
+        }
+        else if (command.Equals("ACCOUNT", StringComparison.OrdinalIgnoreCase))
+        {
+            if (commandParams.Length <= 0) return;
+            
+            var source = IrcSource.FromPrefix(prefix);
+            var updatedAccountName = commandParams[0];
+            if (updatedAccountName.Equals("*"))
+            {
+                updatedAccountName = "0";
+            }
+            
+            foreach (var (_, channel) in _channels)
+            {
+                var user = channel.FindUser(source.Nick);
+                if (user == null) continue;
+                    
+                channel.AddOrUpdateUser(source.Nick, accountName: updatedAccountName);
+            }
         }
     }
 
@@ -945,10 +972,24 @@ public class IrcClient
     protected virtual void OnIrcNumeric(int numeric, string prefix, string trailing, string[] parameters,
         IDictionary<string, string> tags)
     {
+        var debugSource = IrcSource.FromPrefix(prefix);
+        var debugParamList = string.Join(", ", parameters);
+        var debugTagString = string.Join(';', tags?.Select(kvp => $"{kvp.Key}={kvp.Value}") ?? []);
+        _logger?.LogTrace($"<- {numeric:000} [{debugTagString}] ({debugSource}) ({debugParamList}): {trailing}");
+
         // ReSharper disable once ConvertIfStatementToSwitchStatement
         if (numeric == 1)
         {
             _receivedWelcome = true;
+        }
+        else if (numeric == 2)
+        {
+            // This is mainly for debug logging...
+            var m = ServerVersionPattern.Match(trailing);
+            if (m.Success)
+            {
+                _serverVersionString = m.Groups[1].Value;
+            }
         }
         else if (numeric == 324)
         {
@@ -991,6 +1032,65 @@ public class IrcClient
             var channel = parameters[2];
             OnNamesReplyReceived(channel, trailing);
         }
+        else if (numeric == 354)
+        {
+            // :<server> 354 <client> [token] [channel] [user] [ip] [host] [server] [nick] [flags] [hopcount] [idle] [account] [oplevel] [:realname]
+            /*
+            [09:49:09 DBG] <- 354 [] (kratos.cncirc.net) (GTestClient, Stargate.Command, Atlantis): 0
+            [09:49:09 DBG] <- 354 [] (kratos.cncirc.net) (GTestClient, staff.cncirc.net, Genesis): Genesis
+            [09:49:09 DBG] <- 354 [] (kratos.cncirc.net) (GTestClient, cloaked-il7rkj.res.spectrum.com, GTestClient): 0
+            [09:49:09 DBG] <- 354 [] (kratos.cncirc.net) (GTestClient, Lone0001.ca, SgtLone): Lone0001
+            [09:49:09 DBG] <- 354 [] (kratos.cncirc.net) (GTestClient, cloaked-jslcfn.org, SniperFodder): SniperFodder
+            */
+            var paramList = parameters.Skip(1).ToList();
+            paramList.AddRange(trailing.Split(' '));
+            var token = paramList[0];
+            if (_whoRequests.TryGetValue(token, out var whoChannelName))
+            {
+                var incomingChannelName = paramList[1];
+                if (!incomingChannelName.Equals(whoChannelName, StringComparison.OrdinalIgnoreCase))
+                {
+                    // Throw a debug log in to record frequency of this...
+                    // The WHOX spec says requesting: "c [returns] an arbitrary channel the client is joined to" [sic]...
+                    //
+                    // If using channel name proves reliable, we don't need to do this dictionary lookup above.
+                    // And this matters because numeric 315 ("END OF WHO" reply) does NOT include this token association.
+                    _logger?.LogTrace($"*** WHO: '{whoChannelName}' does not match the incoming channel name: {incomingChannelName} (Server version: {_serverVersionString})");
+                }
+                
+                // var hostName = paramList[2]; // TBH, we don't care about hostname.
+                var userName = paramList[3];
+                var accountName = paramList[4];
+
+                if (!_channels.TryGetValue(whoChannelName, out var channel)) return;
+
+                var channelUser = channel.FindUser(userName);
+                if (channelUser != null)
+                {
+                    channel.AddOrUpdateUser(userName, accountName: accountName);
+                    _logger?.LogTrace($"*** WHO: ({whoChannelName}, {incomingChannelName}) [{userName}] {accountName}");
+                }
+            }
+        }
+        else if (numeric == 315)
+        {
+            // [14:33:48 VRB] <- 315 [] (kratos.cncirc.net) (GTestClient, #genesis): End of /WHO list.
+            parameters = parameters.Skip(1).ToArray();
+            if (parameters.Length > 0)
+            {
+                var whoChannelName = parameters[0];
+                var keysToRemove = _whoRequests
+                                   .Where(kvp => kvp.Value.Equals(whoChannelName, StringComparison.OrdinalIgnoreCase))
+                                   .Select(kvp => kvp.Key)
+                                   .ToList();
+                
+                // Clean up the requests.
+                foreach(var key in keysToRemove)
+                {
+                    _whoRequests.Remove(key);
+                }
+            }
+        }
         else if (numeric == 372) // MOTD
         {
             _motd.AppendLine(trailing);
@@ -1013,7 +1113,7 @@ public class IrcClient
             _serverFeatureSupport = _serverFeatureSupport.Concat(serverSettings)
                                                          .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
         }
-        else if (_lastNumeric == 005 && !_serverFeatureEventFired)
+        else if (_lastNumeric == 005 && !_firedServerFeaturesEvent)
         {
             // We're starting to receive new lines, so fire off ISUPPORT.
             HandleReplyISupportReceived();
@@ -1025,12 +1125,6 @@ public class IrcClient
                 OnConnectionEstablished();
                 _firedOnConnectEvent = true;
             }
-        }
-        else
-        {
-            var source = IrcSource.FromPrefix(prefix);
-            var paramList = string.Join(", ", parameters);
-            _logger?.LogDebug($"<- {numeric:000} ({source}) ({paramList}): {trailing}");
         }
 
         _lastNumeric = numeric;
@@ -1152,6 +1246,14 @@ public class IrcClient
         }
 
         Send($"MODE {channelName}");
+
+        // ReSharper disable once InvertIf
+        if (_whoxSupported && (SupportsCapability(IrcV3Capabilities.AccountTag) || SupportsCapability(IrcV3Capabilities.AccountNotify)))
+        {
+            var tokenString = Convert.ToBase64String(Guid.NewGuid().ToByteArray()).Substring(0, 3);
+            _whoRequests.Add(tokenString, channelName);
+            Send($"WHO {channelName} {WhoxRequestedFields},{tokenString}");
+        }
     }
 
     /// <summary>
@@ -1198,12 +1300,12 @@ public class IrcClient
     protected virtual void HandleReplyISupportReceived()
     {
         // Fire the event if it hasn't already been fired.
-        if (!_serverFeatureEventFired)
+        if (!_firedServerFeaturesEvent)
         {
             ServerFeaturesReceivedEvent?.Invoke(this, new ServerFeaturesReceivedEventArgs(_serverFeatureSupport));
         }
 
-        _serverFeatureEventFired = true;
+        _firedServerFeaturesEvent = true;
 
         if (_serverFeatureSupport.TryGetValue("CHANTYPES", out var channelTypes))
         {
@@ -1266,6 +1368,11 @@ public class IrcClient
         {
             ServerSettings = ServerSettings with { BotMode = botModeStr[0] };
         }
+        
+        if (_serverFeatureSupport.ContainsKey("WHOX"))
+        {
+            _whoxSupported = true;
+        }
     }
 
     protected virtual void OnServerNoticeReceived(string source, string message)
@@ -1284,6 +1391,9 @@ public class IrcClient
         channel.Topic = topic;
         TopicChangedEvent?.Invoke(this, new TopicChangedEventArgs(channelName, topic, oldTopic));
     }
+
+    [GeneratedRegex("running version (.+)", RegexOptions.Compiled)]
+    private static partial Regex ServerVersionRegex();
 
     #endregion
 }

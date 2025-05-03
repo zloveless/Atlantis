@@ -67,24 +67,42 @@ public class Channel
     }
 
     /// <summary>
-    ///     Adds a user with the specified access modes.
+    ///     Adds a user with the specified access modes or account name.
     /// </summary>
     /// <param name="userName"></param>
     /// <param name="accessModes"></param>
-    public void AddOrUpdateUser(string userName, string? accessModes = null)
+    /// <param name="accountName"></param>
+    public void AddOrUpdateUser(string userName, string? accessModes = null, string? accountName = null)
     {
-        var modes = accessModes ?? string.Empty;
-        if (TryGetUserModes(userName, out var channelUser))
+        if (accessModes != null)
         {
-            Users.Remove(channelUser);
-            channelUser = channelUser with { Modes = modes };
-        }
-        else
-        {
-            channelUser = new ChannelUser(userName, modes);
-        }
+            if (TryGetUserModes(userName, out var channelUser))
+            {
+                Users.Remove(channelUser);
+                channelUser = channelUser with { Modes = accessModes };
+            }
+            else
+            {
+                channelUser = new ChannelUser(userName, accessModes);
+            }
 
-        Users.Add(channelUser);
+            Users.Add(channelUser);
+        }
+        
+        if (accountName != null)
+        {
+            var currentUser = FindUser(userName);
+            if (currentUser == null) return;
+            
+            // Check if the account would actually change if we update it.
+            // Save an update.
+            var isSameAccount = currentUser.AccountName?.Equals(accountName, StringComparison.OrdinalIgnoreCase) ?? false;
+            if (isSameAccount) return;
+
+            Users.Remove(currentUser);
+            currentUser = currentUser with { AccountName = accountName };
+            Users.Add(currentUser);
+        }
     }
 
     /// <summary>

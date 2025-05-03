@@ -1,11 +1,12 @@
 ﻿using Atlantis.Net.Irc;
+using Atlantis.Net.Irc.Events;
 using Microsoft.Extensions.Logging;
 using Serilog;
 
 #region Logging
 
 Log.Logger = new LoggerConfiguration()
-             .MinimumLevel.Debug()
+             .MinimumLevel.Verbose()
              .WriteTo.Console()
              .CreateLogger();
 
@@ -26,7 +27,7 @@ var client = new IrcClient(config, logger)
     Port = 6697
 };
 
-client.ConnectionEstablishedEvent += (sender, e) => 
+client.ConnectionEstablishedEvent += (sender, e) =>
 {
     logger.LogInformation("Connected to IRC!");
     client.JoinChannel("#genesis");
@@ -94,13 +95,14 @@ client.ChannelMessageReceivedEvent += (sender, e) =>
     else if (!e.IsNotice && e.Message.StartsWith("!version"))
     {
         // TODO: Figure out how to match requests to replies. Possible case for labels/message tags?
-        //client.SendCtcp(CtcpEvent.Version, source.Nick, string.Empty);
-        client.Send($"@label=foo PRIVMSG {source.Nick} :\x01" + $"VERSION\x01");
+        client.SendCtcp(CtcpEvent.Version, source.Nick, string.Empty);
+        //client.Send($"@label=foo PRIVMSG {source.Nick} :\x01" + $"VERSION\x01");
     }
-    else if (!e.IsNotice && e.Message.StartsWith("!part"))
+    else if (!e.IsNotice && e.Message.StartsWith("!whoami"))
     {
-        logger.LogInformation($"Parting {e.Target}");
-        client.PartChannel(e.Target);
+        if (!client.TryGetChannel(e.Target, out var channel)) return;
+        var user = channel.FindUser(source.Nick);
+        client.Message(e.Target, $"Hi {source}, You are '{e.Source.Colorize(13)}' logged into account '{user?.AccountName?.Colorize(7)}' with access modes '{user?.Modes.Colorize(7)}' on {e.Target.Colorize(3)}");
     }
 };
 

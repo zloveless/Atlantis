@@ -2,8 +2,14 @@
 
 namespace Atlantis.Net.Irc;
 
+/// <summary>
+/// Represents a channel user, including all of their modes ands their account.
+/// </summary>
+/// <param name="User"></param>
+/// <param name="Modes"></param>
+/// <param name="AccountName"></param>
 [PublicAPI]
-public record ChannelUser(string User, string Modes);
+public record ChannelUser(string User, string Modes, string? AccountName = null);
 
 /// <summary>
 /// Represents a grouping of channel modes from RPL_ISUPPORT.
