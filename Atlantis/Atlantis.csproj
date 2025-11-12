@@ -3,7 +3,7 @@
     <Product>Atlantis</Product>
     <Description>Atlantis is a collection of code that is common amongst many pet projects.</Description>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFrameworks>net9.0;net10.0</TargetFrameworks>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="JetBrains.Annotations" Version="2024.3.0" />

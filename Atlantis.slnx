@@ -1,0 +1,8 @@
+﻿<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="Directory.Build.props" />
+  </Folder>
+  <Project Path="Atlantis.Net.Irc\Atlantis.Net.Irc.csproj" />
+  <Project Path="Atlantis\Atlantis.csproj" />
+  <Project Path="IrcTestClient\IrcTestClient.csproj" Type="Classic C#" />
+</Solution>
