@@ -16,9 +16,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: 9.0.x
+          dotnet-version: |
+            9.0.x
+            10.0.x
           source-url: "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
         env:
           NUGET_AUTH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
